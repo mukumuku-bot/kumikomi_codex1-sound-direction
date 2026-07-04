@@ -55,8 +55,12 @@ const speechState = {
   recognition: null,
   supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
   listening: false,
+  shouldListen: false,
   finalText: "",
   interimText: "",
+  lastCommandKey: "",
+  lastCommandAt: 0,
+  audioContext: null,
 };
 
 const ctx = elements.overlay.getContext("2d");
@@ -188,9 +192,11 @@ function getMediaErrorMessage(error, label) {
 async function startRun() {
   elements.startRunButton.disabled = true;
   elements.runStatusText.textContent = "カメラを起動しています";
+  ensureBarkAudio();
 
   try {
     stopRun();
+    elements.startRunButton.disabled = true;
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -204,6 +210,7 @@ async function startRun() {
     elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
     await loadModel();
     elements.runStatusText.textContent = "人物を探しています";
+    startHiddenTranscription();
     detectLoop();
   } catch (error) {
     elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
@@ -215,6 +222,7 @@ async function startRun() {
 function stopRun() {
   runState.running = false;
   runState.detecting = false;
+  stopHiddenTranscription();
   if (runState.rafId) cancelAnimationFrame(runState.rafId);
   stopStream(runState.stream);
   runState.stream = null;
@@ -375,7 +383,9 @@ function setupTranscription() {
     for (let i = event.resultIndex; i < event.results.length; i += 1) {
       const piece = event.results[i][0]?.transcript || "";
       if (event.results[i].isFinal) {
-        speechState.finalText += `${piece.trim()}\n`;
+        const finalPiece = piece.trim();
+        speechState.finalText += `${finalPiece}\n`;
+        handleVoiceCommand(finalPiece);
       } else {
         interim += piece;
       }
@@ -390,10 +400,16 @@ function setupTranscription() {
     elements.transcriptionStatus.textContent = elements.transcriptText.value.trim() ? "停止中" : "待機中";
     elements.transcribeButton.textContent = "文字起こし開始";
     renderTranscript();
+    if (speechState.shouldListen && runState.running) {
+      window.setTimeout(startHiddenTranscription, 450);
+    }
   });
 
   recognition.addEventListener("error", (event) => {
     speechState.listening = false;
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      speechState.shouldListen = false;
+    }
     elements.transcriptionStatus.textContent = event.error === "not-allowed" ? "権限なし" : "エラー";
     elements.transcribeButton.textContent = "文字起こし開始";
   });
@@ -414,6 +430,96 @@ function toggleTranscription() {
   } catch {
     elements.transcriptionStatus.textContent = "起動待ち";
   }
+}
+
+function startHiddenTranscription() {
+  if (!speechState.recognition || speechState.listening) return;
+  speechState.shouldListen = true;
+  speechState.recognition.lang = "ja-JP";
+  ensureBarkAudio();
+
+  try {
+    speechState.recognition.start();
+  } catch {
+    elements.transcriptionStatus.textContent = "起動待ち";
+  }
+}
+
+function stopHiddenTranscription() {
+  speechState.shouldListen = false;
+  if (speechState.recognition && speechState.listening) {
+    speechState.recognition.stop();
+  }
+}
+
+function handleVoiceCommand(text) {
+  const dogName = normalizeSpeech(settings.dogName || defaultSettings.dogName);
+  const heard = normalizeSpeech(text);
+  if (!dogName || !heard.includes(dogName)) return;
+
+  const barkCount = heard.includes("おいで") ? 2 : 1;
+  const commandKey = `${barkCount}:${heard}`;
+  const now = Date.now();
+  if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 1800) return;
+
+  speechState.lastCommandKey = commandKey;
+  speechState.lastCommandAt = now;
+  bark(barkCount);
+}
+
+function normalizeSpeech(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[\\s　、。,.!！?？「」『』"']/g, "");
+}
+
+function ensureBarkAudio() {
+  if (!speechState.audioContext) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+    speechState.audioContext = new AudioContext();
+  }
+
+  if (speechState.audioContext.state === "suspended") {
+    speechState.audioContext.resume().catch(() => {});
+  }
+
+  return speechState.audioContext;
+}
+
+function bark(count) {
+  const audioContext = ensureBarkAudio();
+  if (!audioContext) return;
+
+  for (let index = 0; index < count; index += 1) {
+    window.setTimeout(() => playBark(audioContext), index * 260);
+  }
+}
+
+function playBark(audioContext) {
+  const now = audioContext.currentTime;
+  const gain = audioContext.createGain();
+  const tone = audioContext.createOscillator();
+  const growl = audioContext.createOscillator();
+
+  tone.type = "square";
+  growl.type = "sawtooth";
+  tone.frequency.setValueAtTime(720, now);
+  tone.frequency.exponentialRampToValueAtTime(380, now + 0.16);
+  growl.frequency.setValueAtTime(190, now);
+  growl.frequency.exponentialRampToValueAtTime(120, now + 0.16);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.34, now + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+  tone.connect(gain);
+  growl.connect(gain);
+  gain.connect(audioContext.destination);
+  tone.start(now);
+  growl.start(now);
+  tone.stop(now + 0.19);
+  growl.stop(now + 0.19);
 }
 
 function renderTranscript() {
