@@ -92,6 +92,7 @@ const speechState = {
   volumeAnalyser: null,
   volumeData: null,
   volumeRafId: null,
+  barkNoiseBuffer: null,
 };
 
 const supabaseConfig = window.SMARTPHONE_DOG_SUPABASE || {};
@@ -489,7 +490,7 @@ function checkBark() {
   }
 
   bark(1);
-  setCheck(elements.barkDot, elements.barkCheckText, "is-ok", "鳴き声を再生しました");
+  setCheck(elements.barkDot, elements.barkCheckText, "is-ok", "リアルなワンを再生しました");
 }
 
 async function runAllChecks() {
@@ -1010,34 +1011,138 @@ function bark(count) {
   if (!audioContext) return;
 
   for (let index = 0; index < count; index += 1) {
-    window.setTimeout(() => playBark(audioContext), index * 260);
+    window.setTimeout(() => playBark(audioContext), index * 340);
   }
 }
 
 function playBark(audioContext) {
   const now = audioContext.currentTime;
-  const gain = audioContext.createGain();
-  const tone = audioContext.createOscillator();
-  const growl = audioContext.createOscillator();
+  const duration = 0.32;
+  const output = audioContext.createGain();
+  const compressor = audioContext.createDynamicsCompressor();
 
-  tone.type = "square";
-  growl.type = "sawtooth";
-  tone.frequency.setValueAtTime(720, now);
-  tone.frequency.exponentialRampToValueAtTime(380, now + 0.16);
-  growl.frequency.setValueAtTime(190, now);
-  growl.frequency.exponentialRampToValueAtTime(120, now + 0.16);
+  compressor.threshold.setValueAtTime(-22, now);
+  compressor.knee.setValueAtTime(14, now);
+  compressor.ratio.setValueAtTime(8, now);
+  compressor.attack.setValueAtTime(0.006, now);
+  compressor.release.setValueAtTime(0.13, now);
 
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.34, now + 0.025);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+  output.gain.setValueAtTime(0.0001, now);
+  output.gain.exponentialRampToValueAtTime(0.78, now + 0.018);
+  output.gain.exponentialRampToValueAtTime(0.42, now + 0.105);
+  output.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-  tone.connect(gain);
-  growl.connect(gain);
-  gain.connect(audioContext.destination);
-  tone.start(now);
-  growl.start(now);
-  tone.stop(now + 0.19);
-  growl.stop(now + 0.19);
+  output.connect(compressor);
+  compressor.connect(audioContext.destination);
+
+  playBarkNoise(audioContext, output, now, duration);
+  playBarkVoice(audioContext, output, now, duration);
+}
+
+function playBarkVoice(audioContext, destination, startTime, duration) {
+  const voiceGain = audioContext.createGain();
+  const growlGain = audioContext.createGain();
+  const chest = audioContext.createOscillator();
+  const voice = audioContext.createOscillator();
+  const bite = audioContext.createOscillator();
+  const throat = audioContext.createBiquadFilter();
+  const mouth = audioContext.createBiquadFilter();
+
+  throat.type = "bandpass";
+  throat.frequency.setValueAtTime(360, startTime);
+  throat.frequency.exponentialRampToValueAtTime(220, startTime + duration);
+  throat.Q.setValueAtTime(3.2, startTime);
+
+  mouth.type = "bandpass";
+  mouth.frequency.setValueAtTime(920, startTime);
+  mouth.frequency.exponentialRampToValueAtTime(610, startTime + duration);
+  mouth.Q.setValueAtTime(2.2, startTime);
+
+  chest.type = "sawtooth";
+  chest.frequency.setValueAtTime(155, startTime);
+  chest.frequency.exponentialRampToValueAtTime(82, startTime + duration);
+
+  voice.type = "triangle";
+  voice.frequency.setValueAtTime(540, startTime);
+  voice.frequency.exponentialRampToValueAtTime(260, startTime + duration);
+
+  bite.type = "square";
+  bite.frequency.setValueAtTime(980, startTime);
+  bite.frequency.exponentialRampToValueAtTime(430, startTime + 0.15);
+
+  growlGain.gain.setValueAtTime(0.0001, startTime);
+  growlGain.gain.exponentialRampToValueAtTime(0.24, startTime + 0.018);
+  growlGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  voiceGain.gain.setValueAtTime(0.0001, startTime);
+  voiceGain.gain.exponentialRampToValueAtTime(0.36, startTime + 0.026);
+  voiceGain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.13);
+  voiceGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  chest.connect(throat);
+  throat.connect(growlGain);
+  growlGain.connect(destination);
+
+  voice.connect(mouth);
+  bite.connect(mouth);
+  mouth.connect(voiceGain);
+  voiceGain.connect(destination);
+
+  [chest, voice, bite].forEach((oscillator) => {
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.03);
+  });
+}
+
+function playBarkNoise(audioContext, destination, startTime, duration) {
+  const noise = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
+  const lowpass = audioContext.createBiquadFilter();
+  const noiseGain = audioContext.createGain();
+
+  noise.buffer = getBarkNoiseBuffer(audioContext);
+  noise.playbackRate.setValueAtTime(0.92 + Math.random() * 0.14, startTime);
+
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(760, startTime);
+  filter.frequency.exponentialRampToValueAtTime(430, startTime + duration);
+  filter.Q.setValueAtTime(1.4, startTime);
+
+  lowpass.type = "lowpass";
+  lowpass.frequency.setValueAtTime(1650, startTime);
+  lowpass.frequency.exponentialRampToValueAtTime(880, startTime + duration);
+  lowpass.Q.setValueAtTime(0.8, startTime);
+
+  noiseGain.gain.setValueAtTime(0.0001, startTime);
+  noiseGain.gain.exponentialRampToValueAtTime(0.5, startTime + 0.012);
+  noiseGain.gain.exponentialRampToValueAtTime(0.16, startTime + 0.11);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  noise.connect(filter);
+  filter.connect(lowpass);
+  lowpass.connect(noiseGain);
+  noiseGain.connect(destination);
+  noise.start(startTime);
+  noise.stop(startTime + duration + 0.04);
+}
+
+function getBarkNoiseBuffer(audioContext) {
+  if (speechState.barkNoiseBuffer) return speechState.barkNoiseBuffer;
+
+  const length = Math.floor(audioContext.sampleRate * 0.38);
+  const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+  const data = buffer.getChannelData(0);
+  let previous = 0;
+
+  for (let index = 0; index < length; index += 1) {
+    const white = Math.random() * 2 - 1;
+    previous = previous * 0.74 + white * 0.26;
+    const envelope = 1 - index / length;
+    data[index] = previous * envelope;
+  }
+
+  speechState.barkNoiseBuffer = buffer;
+  return buffer;
 }
 
 function renderTranscript() {
