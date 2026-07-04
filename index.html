@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101828" />
     <title>スマホ犬（Smartphone Dog）</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-12" />
+    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-13" />
   </head>
   <body>
     <header class="topbar">
@@ -30,6 +30,27 @@
         <div id="accountStatus" class="account-status">Supabase接続を確認しています</div>
 
         <div class="account-grid">
+          <article class="account-card">
+            <h2>現在の状態</h2>
+            <p id="currentAccountText">未ログイン</p>
+            <p id="currentDogNameText">犬の名前: ポチ</p>
+            <button id="logoutButton" class="secondary-button" type="button" disabled>ログアウト</button>
+          </article>
+
+          <form id="loginForm" class="account-card">
+            <h2>ログイン</h2>
+            <label class="field compact-field">
+              <span>メールアドレス</span>
+              <input id="loginEmail" type="email" autocomplete="email" placeholder="登録したメールアドレス" required />
+            </label>
+            <label class="field compact-field">
+              <span>パスワード</span>
+              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="パスワード" required />
+            </label>
+            <button class="primary-button" type="submit">ログイン</button>
+            <button id="resendConfirmationButton" class="secondary-button" type="button">確認メールを再送</button>
+          </form>
+
           <form id="signUpForm" class="account-card">
             <h2>新規アカウント作成</h2>
             <label class="field compact-field">
@@ -46,27 +67,6 @@
             </label>
             <button class="primary-button" type="submit">アカウント作成</button>
           </form>
-
-          <form id="loginForm" class="account-card">
-            <h2>ログイン</h2>
-            <label class="field compact-field">
-              <span>メールアドレス</span>
-              <input id="loginEmail" type="email" autocomplete="email" placeholder="登録したメールアドレス" required />
-            </label>
-            <label class="field compact-field">
-              <span>パスワード</span>
-              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="パスワード" required />
-            </label>
-            <button class="primary-button" type="submit">ログイン</button>
-            <button id="resendConfirmationButton" class="secondary-button" type="button">確認メールを再送</button>
-          </form>
-
-          <article class="account-card">
-            <h2>現在の状態</h2>
-            <p id="currentAccountText">未ログイン</p>
-            <p id="currentDogNameText">犬の名前: ポチ</p>
-            <button id="logoutButton" class="secondary-button" type="button" disabled>ログアウト</button>
-          </article>
         </div>
       </section>
 
@@ -418,8 +418,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
-    <script src="./supabase-config.js?v=alsok-inspired-12"></script>
+    <script src="./supabase-config.js?v=alsok-inspired-13"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=alsok-inspired-12" type="module"></script>
+    <script src="./app.js?v=alsok-inspired-13" type="module"></script>
   </body>
 </html>
