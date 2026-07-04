@@ -23,6 +23,7 @@ const state = {
   detecting: false,
   eyeX: 0,
   eyeY: 0,
+  sleeping: false,
 };
 
 const PERSON_SCORE_MIN = 0.45;
@@ -129,6 +130,7 @@ function renderDetections(predictions) {
   personCountText.textContent = String(people.length);
 
   if (people.length === 0) {
+    sleepEyes();
     updateEyeTracking(0, 0);
     loadingState.textContent = "人物を探しています";
     offsetText.textContent = "--%";
@@ -142,6 +144,7 @@ function renderDetections(predictions) {
   }
 
   loadingState.textContent = "";
+  wakeEyes();
   const mainPerson = people[0];
   const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
@@ -198,8 +201,23 @@ function scheduleBlink() {
 }
 
 function blinkEyes() {
+  if (state.sleeping) return;
   dogEyes.classList.add("is-blinking");
   setTimeout(() => dogEyes.classList.remove("is-blinking"), 130);
+}
+
+function sleepEyes() {
+  if (state.sleeping) return;
+  state.sleeping = true;
+  dogEyes.classList.remove("is-blinking");
+  dogEyes.classList.add("is-sleeping");
+}
+
+function wakeEyes() {
+  if (!state.sleeping) return;
+  state.sleeping = false;
+  dogEyes.classList.remove("is-sleeping");
+  blinkEyes();
 }
 
 function clamp(value, min, max) {

@@ -60,7 +60,7 @@ input {
 }
 
 #pupilGroup {
-  transition: transform 130ms ease-out;
+  transition: transform 130ms ease-out, opacity 160ms ease-out;
 }
 
 .lid {
@@ -79,6 +79,15 @@ input {
 .dog-eyes.is-blinking .lid {
   opacity: 1;
   transform: translateY(0);
+}
+
+.dog-eyes.is-sleeping .lid {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dog-eyes.is-sleeping #pupilGroup {
+  opacity: 0.08;
 }
 
 .camera-start {
