@@ -13,6 +13,7 @@ const state = {
   listening: false,
   finalText: "",
   interimText: "",
+  nativeDictation: false,
 };
 
 transcribeButton.addEventListener("click", toggleTranscription);
@@ -35,12 +36,28 @@ function setupTranscription() {
     return;
   }
 
-  if (!state.supported) {
-    transcribeButton.disabled = true;
-    transcriptionStatus.textContent = "非対応";
-    transcriptionHelp.textContent = "このブラウザは音声認識に対応していません。AndroidのChromeで開いてください。iPhoneのSafariやアプリ内ブラウザでは使えない場合があります。";
+  if (isAppleMobileBrowser()) {
+    enableNativeDictationMode();
     return;
   }
+
+  if (!state.supported) {
+    enableNativeDictationMode();
+    return;
+  }
+}
+
+function isAppleMobileBrowser() {
+  const ua = navigator.userAgent || "";
+  const isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return isiOS;
+}
+
+function enableNativeDictationMode() {
+  state.nativeDictation = true;
+  transcriptionStatus.textContent = "端末入力";
+  transcribeButton.innerHTML = '<span aria-hidden="true"></span> 入力欄を開く';
+  transcriptionHelp.textContent = "iPhoneではSafariから直接文字起こしを開始できない場合があります。入力欄をタップし、キーボードのマイクボタンで音声入力してください。";
 }
 
 function createRecognition() {
@@ -101,6 +118,11 @@ function attachRecognitionEvents(recognition) {
 }
 
 async function toggleTranscription() {
+  if (state.nativeDictation) {
+    focusManualDictation();
+    return;
+  }
+
   if (state.listening) {
     state.recognition?.stop();
     return;
@@ -121,6 +143,14 @@ async function toggleTranscription() {
     transcribeButton.innerHTML = '<span aria-hidden="true"></span> 文字起こし開始';
     transcriptionHelp.textContent = getStartErrorMessage(error);
   }
+}
+
+function focusManualDictation() {
+  transcriptionStatus.textContent = "入力できます";
+  transcriptionHelp.textContent = "キーボードが開いたら、マイクボタンを押して話してください。入力された文章はコピーや保存ができます。";
+  transcriptText.removeAttribute("readonly");
+  transcriptText.focus();
+  transcriptText.setSelectionRange(transcriptText.value.length, transcriptText.value.length);
 }
 
 async function ensureMicrophonePermission() {
@@ -171,7 +201,7 @@ function clearTranscript() {
   state.finalText = "";
   state.interimText = "";
   transcriptText.value = "";
-  transcriptionStatus.textContent = state.listening ? "聞き取り中" : "待機中";
+  transcriptionStatus.textContent = state.nativeDictation ? "端末入力" : state.listening ? "聞き取り中" : "待機中";
 }
 
 function getRecognitionErrorMessage(errorCode) {
