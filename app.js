@@ -1,0 +1,456 @@
+const routes = ["settings", "product", "check", "running"];
+const defaultSettings = {
+  dogName: "ポチ",
+  password: "",
+  language: "ja-JP",
+  sensitivity: 45,
+  mirror: true,
+  speech: true,
+};
+
+const settings = loadSettings();
+const elements = {
+  tabs: document.querySelectorAll("[data-route]"),
+  pages: document.querySelectorAll("[data-page]"),
+  settingsForm: document.querySelector("#settingsForm"),
+  settingDogName: document.querySelector("#settingDogName"),
+  settingPassword: document.querySelector("#settingPassword"),
+  settingLanguage: document.querySelector("#settingLanguage"),
+  settingSensitivity: document.querySelector("#settingSensitivity"),
+  settingMirror: document.querySelector("#settingMirror"),
+  settingSpeech: document.querySelector("#settingSpeech"),
+  sensitivityOutput: document.querySelector("#sensitivityOutput"),
+  resetSettingsButton: document.querySelector("#resetSettingsButton"),
+  browserDot: document.querySelector("#browserDot"),
+  cameraDot: document.querySelector("#cameraDot"),
+  micDot: document.querySelector("#micDot"),
+  speechDot: document.querySelector("#speechDot"),
+  browserCheckText: document.querySelector("#browserCheckText"),
+  cameraCheckText: document.querySelector("#cameraCheckText"),
+  micCheckText: document.querySelector("#micCheckText"),
+  speechCheckText: document.querySelector("#speechCheckText"),
+  browserCheckButton: document.querySelector("#browserCheckButton"),
+  cameraCheckButton: document.querySelector("#cameraCheckButton"),
+  micCheckButton: document.querySelector("#micCheckButton"),
+  speechCheckButton: document.querySelector("#speechCheckButton"),
+  startRunButton: document.querySelector("#startRunButton"),
+  stopRunButton: document.querySelector("#stopRunButton"),
+  dogEyes: document.querySelector("#dogEyes"),
+  pupilGroup: document.querySelector("#pupilGroup"),
+  video: document.querySelector("#video"),
+  overlay: document.querySelector("#overlay"),
+  runStatusText: document.querySelector("#runStatusText"),
+  personCountText: document.querySelector("#personCountText"),
+  directionText: document.querySelector("#directionText"),
+  confidenceText: document.querySelector("#confidenceText"),
+  speechPanel: document.querySelector("#speechPanel"),
+  transcriptionStatus: document.querySelector("#transcriptionStatus"),
+  transcribeButton: document.querySelector("#transcribeButton"),
+  transcriptText: document.querySelector("#transcriptText"),
+};
+
+const runState = {
+  model: null,
+  stream: null,
+  running: false,
+  detecting: false,
+  rafId: null,
+  eyeX: 0,
+  eyeY: 0,
+  sleeping: false,
+};
+
+const speechState = {
+  recognition: null,
+  supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+  listening: false,
+  finalText: "",
+  interimText: "",
+};
+
+const ctx = elements.overlay.getContext("2d");
+const EYE_RANGE_X = 30;
+const EYE_RANGE_Y = 20;
+
+window.addEventListener("hashchange", showRouteFromHash);
+window.addEventListener("resize", resizeOverlay);
+elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
+elements.settingSensitivity.addEventListener("input", updateSensitivityLabel);
+elements.resetSettingsButton.addEventListener("click", resetSettings);
+elements.browserCheckButton.addEventListener("click", checkBrowser);
+elements.cameraCheckButton.addEventListener("click", checkCamera);
+elements.micCheckButton.addEventListener("click", checkMic);
+elements.speechCheckButton.addEventListener("click", checkSpeech);
+elements.startRunButton.addEventListener("click", startRun);
+elements.stopRunButton.addEventListener("click", stopRun);
+elements.transcribeButton.addEventListener("click", toggleTranscription);
+
+applySettingsToForm();
+setupTranscription();
+checkBrowser();
+showRouteFromHash();
+scheduleBlink();
+
+function showRouteFromHash() {
+  const route = window.location.hash.replace("#", "") || "product";
+  const currentRoute = routes.includes(route) ? route : "product";
+
+  elements.pages.forEach((page) => {
+    page.classList.toggle("is-active", page.dataset.page === currentRoute);
+  });
+
+  elements.tabs.forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.route === currentRoute);
+  });
+}
+
+function applySettingsToForm() {
+  elements.settingDogName.value = settings.dogName;
+  elements.settingPassword.value = settings.password;
+  elements.settingLanguage.value = settings.language;
+  elements.settingSensitivity.value = String(settings.sensitivity);
+  elements.settingMirror.checked = settings.mirror;
+  elements.settingSpeech.checked = settings.speech;
+  elements.speechPanel.hidden = !settings.speech;
+  updateSensitivityLabel();
+}
+
+function saveSettingsFromForm(event) {
+  event.preventDefault();
+  settings.dogName = elements.settingDogName.value.trim() || defaultSettings.dogName;
+  settings.password = elements.settingPassword.value;
+  settings.language = elements.settingLanguage.value;
+  settings.sensitivity = Number(elements.settingSensitivity.value);
+  settings.mirror = elements.settingMirror.checked;
+  settings.speech = elements.settingSpeech.checked;
+  localStorage.setItem("watch-system-settings", JSON.stringify(settings));
+  elements.speechPanel.hidden = !settings.speech;
+  elements.runStatusText.textContent = "設定を保存しました";
+
+  if (speechState.recognition) {
+    speechState.recognition.lang = settings.language;
+  }
+}
+
+function resetSettings() {
+  Object.assign(settings, defaultSettings);
+  localStorage.removeItem("watch-system-settings");
+  applySettingsToForm();
+  elements.runStatusText.textContent = "設定を初期化しました";
+}
+
+function updateSensitivityLabel() {
+  elements.sensitivityOutput.textContent = `${elements.settingSensitivity.value}%`;
+}
+
+function loadSettings() {
+  try {
+    return { ...defaultSettings, ...JSON.parse(localStorage.getItem("watch-system-settings")) };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function setCheck(dot, textElement, status, message) {
+  dot.classList.remove("is-ok", "is-warn", "is-bad");
+  dot.classList.add(status);
+  textElement.textContent = message;
+}
+
+function checkBrowser() {
+  const secure = window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const media = Boolean(navigator.mediaDevices?.getUserMedia);
+
+  if (secure && media) {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-ok", "カメラとマイクを使えるブラウザです");
+  } else if (media) {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-warn", "HTTPSまたはlocalhostで開くと安定します");
+  } else {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-bad", "このブラウザではカメラやマイクを使えません");
+  }
+}
+
+async function checkCamera() {
+  setCheck(elements.cameraDot, elements.cameraCheckText, "is-warn", "確認中です");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    stopStream(stream);
+    setCheck(elements.cameraDot, elements.cameraCheckText, "is-ok", "カメラを利用できます");
+  } catch (error) {
+    setCheck(elements.cameraDot, elements.cameraCheckText, "is-bad", getMediaErrorMessage(error, "カメラ"));
+  }
+}
+
+async function checkMic() {
+  setCheck(elements.micDot, elements.micCheckText, "is-warn", "確認中です");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    stopStream(stream);
+    setCheck(elements.micDot, elements.micCheckText, "is-ok", "マイクを利用できます");
+  } catch (error) {
+    setCheck(elements.micDot, elements.micCheckText, "is-bad", getMediaErrorMessage(error, "マイク"));
+  }
+}
+
+function checkSpeech() {
+  if (speechState.supported) {
+    setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "音声認識に対応しています");
+  } else {
+    setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "このブラウザは音声認識に未対応です");
+  }
+}
+
+function getMediaErrorMessage(error, label) {
+  if (error?.name === "NotAllowedError") return `${label}の使用が許可されていません`;
+  if (error?.name === "NotFoundError") return `${label}が見つかりません`;
+  return `${label}を開始できませんでした`;
+}
+
+async function startRun() {
+  elements.startRunButton.disabled = true;
+  elements.runStatusText.textContent = "カメラを起動しています";
+
+  try {
+    stopRun();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+
+    runState.stream = stream;
+    elements.video.srcObject = stream;
+    await elements.video.play();
+    runState.running = true;
+    elements.stopRunButton.disabled = false;
+    elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
+    await loadModel();
+    elements.runStatusText.textContent = "人物を探しています";
+    detectLoop();
+  } catch (error) {
+    elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
+    elements.startRunButton.disabled = false;
+    elements.stopRunButton.disabled = true;
+  }
+}
+
+function stopRun() {
+  runState.running = false;
+  runState.detecting = false;
+  if (runState.rafId) cancelAnimationFrame(runState.rafId);
+  stopStream(runState.stream);
+  runState.stream = null;
+  elements.video.srcObject = null;
+  elements.startRunButton.disabled = false;
+  elements.stopRunButton.disabled = true;
+  elements.personCountText.textContent = "0";
+  elements.directionText.textContent = "停止中";
+  elements.confidenceText.textContent = "--";
+  elements.runStatusText.textContent = "停止しました";
+  sleepEyes();
+}
+
+function stopStream(stream) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
+async function loadModel() {
+  if (runState.model) return;
+  if (!window.cocoSsd) {
+    throw new Error("人物検出モデルを読み込めませんでした");
+  }
+  runState.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
+}
+
+function resizeOverlay() {
+  const scale = window.devicePixelRatio || 1;
+  const width = elements.video.videoWidth || elements.overlay.clientWidth || 1;
+  const height = elements.video.videoHeight || elements.overlay.clientHeight || 1;
+  elements.overlay.width = Math.max(1, Math.round(width * scale));
+  elements.overlay.height = Math.max(1, Math.round(height * scale));
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+async function detectLoop() {
+  if (!runState.running || runState.detecting) return;
+  runState.detecting = true;
+
+  try {
+    resizeOverlay();
+    const predictions = await runState.model.detect(elements.video);
+    renderDetections(predictions);
+  } catch {
+    elements.runStatusText.textContent = "検出中にエラーが発生しました";
+  } finally {
+    runState.detecting = false;
+    if (runState.running) runState.rafId = requestAnimationFrame(detectLoop);
+  }
+}
+
+function renderDetections(predictions) {
+  const frameWidth = elements.video.videoWidth || elements.overlay.width;
+  const frameHeight = elements.video.videoHeight || elements.overlay.height;
+  const minScore = settings.sensitivity / 100;
+  const people = predictions
+    .filter((item) => item.class === "person" && item.score >= minScore)
+    .sort((a, b) => b.score - a.score);
+
+  elements.personCountText.textContent = String(people.length);
+
+  if (!people.length) {
+    sleepEyes();
+    updateEyeTracking(0, 0);
+    elements.runStatusText.textContent = "人物を探しています";
+    elements.directionText.textContent = "未検出";
+    elements.confidenceText.textContent = "--";
+    return;
+  }
+
+  wakeEyes();
+  const mainPerson = people[0];
+  const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
+  updateEyeTracking(metrics.x, metrics.y);
+  elements.runStatusText.textContent = "検出中";
+  elements.directionText.textContent = getDirectionLabel(metrics);
+  elements.confidenceText.textContent = `${Math.round(mainPerson.score * 100)}%`;
+}
+
+function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
+  const personCenterX = x + width / 2;
+  const personCenterY = y + height / 2;
+  const rawX = ((personCenterX - sourceWidth / 2) / (sourceWidth / 2)) * 100;
+  const normalizedX = settings.mirror ? -rawX : rawX;
+  const normalizedY = ((personCenterY - sourceHeight / 2) / (sourceHeight / 2)) * 100;
+  const total = Math.hypot(normalizedX, normalizedY);
+
+  return {
+    x: Math.round(clamp(normalizedX, -100, 100)),
+    y: Math.round(clamp(normalizedY, -100, 100)),
+    total: Math.round(clamp(total, 0, 100)),
+  };
+}
+
+function getDirectionLabel(metrics) {
+  if (metrics.total <= 5) return "ほぼ中央";
+  const horizontal = Math.abs(metrics.x) <= 5 ? "" : metrics.x > 0 ? "右" : "左";
+  const vertical = Math.abs(metrics.y) <= 5 ? "" : metrics.y > 0 ? "下" : "上";
+  return `${vertical}${horizontal}へ${metrics.total}%`;
+}
+
+function updateEyeTracking(xPercent, yPercent) {
+  const targetX = clamp(xPercent / 100, -1, 1) * EYE_RANGE_X;
+  const targetY = clamp(yPercent / 100, -1, 1) * EYE_RANGE_Y;
+  runState.eyeX = runState.eyeX * 0.72 + targetX * 0.28;
+  runState.eyeY = runState.eyeY * 0.72 + targetY * 0.28;
+  elements.pupilGroup.setAttribute("transform", `translate(${runState.eyeX.toFixed(1)} ${runState.eyeY.toFixed(1)})`);
+}
+
+function scheduleBlink() {
+  const delay = 1800 + Math.random() * 3200;
+  setTimeout(() => {
+    blinkEyes();
+    scheduleBlink();
+  }, delay);
+}
+
+function blinkEyes() {
+  if (runState.sleeping) return;
+  elements.dogEyes.classList.add("is-blinking");
+  setTimeout(() => elements.dogEyes.classList.remove("is-blinking"), 130);
+}
+
+function sleepEyes() {
+  if (runState.sleeping) return;
+  runState.sleeping = true;
+  elements.dogEyes.classList.remove("is-blinking");
+  elements.dogEyes.classList.add("is-sleeping");
+}
+
+function wakeEyes() {
+  if (!runState.sleeping) return;
+  runState.sleeping = false;
+  elements.dogEyes.classList.remove("is-sleeping");
+  blinkEyes();
+}
+
+function setupTranscription() {
+  if (!speechState.supported) {
+    elements.transcribeButton.disabled = true;
+    elements.transcriptionStatus.textContent = "未対応";
+    return;
+  }
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new Recognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = settings.language;
+
+  recognition.addEventListener("start", () => {
+    speechState.listening = true;
+    elements.transcriptionStatus.textContent = "聞き取り中";
+    elements.transcribeButton.textContent = "停止";
+  });
+
+  recognition.addEventListener("result", (event) => {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const piece = event.results[i][0]?.transcript || "";
+      if (event.results[i].isFinal) {
+        speechState.finalText += `${piece.trim()}\n`;
+      } else {
+        interim += piece;
+      }
+    }
+    speechState.interimText = interim.trim();
+    renderTranscript();
+  });
+
+  recognition.addEventListener("end", () => {
+    speechState.listening = false;
+    speechState.interimText = "";
+    elements.transcriptionStatus.textContent = elements.transcriptText.value.trim() ? "停止中" : "待機中";
+    elements.transcribeButton.textContent = "文字起こし開始";
+    renderTranscript();
+  });
+
+  recognition.addEventListener("error", (event) => {
+    speechState.listening = false;
+    elements.transcriptionStatus.textContent = event.error === "not-allowed" ? "権限なし" : "エラー";
+    elements.transcribeButton.textContent = "文字起こし開始";
+  });
+
+  speechState.recognition = recognition;
+}
+
+function toggleTranscription() {
+  if (!speechState.recognition) return;
+  if (speechState.listening) {
+    speechState.recognition.stop();
+    return;
+  }
+
+  speechState.recognition.lang = settings.language;
+  try {
+    speechState.recognition.start();
+  } catch {
+    elements.transcriptionStatus.textContent = "起動待ち";
+  }
+}
+
+function renderTranscript() {
+  const divider = speechState.finalText && speechState.interimText ? "\n" : "";
+  elements.transcriptText.value = `${speechState.finalText}${divider}${speechState.interimText}`.trimStart();
+  elements.transcriptText.scrollTop = elements.transcriptText.scrollHeight;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistration("./").then((registration) => {
+    if (registration) registration.unregister();
+  });
+}

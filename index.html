@@ -4,48 +4,333 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#101828" />
-    <title>組み込みデモ一覧</title>
+    <title>見守り支援システム</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="home-shell">
-      <section class="intro" aria-labelledby="pageTitle">
-        <p class="eyebrow">Embedded Web Demos</p>
-        <h1 id="pageTitle">組み込みデモ一覧</h1>
-        <p class="lead">
-          人物検知と文字起こし系の機能を別ページに整理しました。GitHub Pagesでは、この入口からそれぞれのURLへ移動できます。
-        </p>
+    <header class="topbar">
+      <a class="brand" href="#product" aria-label="製品説明へ">
+        <span class="brand-mark" aria-hidden="true">AI</span>
+        <span>
+          <strong>見守り支援システム</strong>
+          <small>Camera / Speech / Status</small>
+        </span>
+      </a>
+    </header>
+
+    <main class="page-shell">
+      <section id="settings" class="page" data-page="settings" aria-labelledby="settingsTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Settings</p>
+          <h1 id="settingsTitle">設定ページ</h1>
+          <p>使用する機能、言語、カメラ表示の向きを調整します。設定はこの端末のブラウザに保存されます。</p>
+        </div>
+
+        <form id="settingsForm" class="settings-grid">
+          <label class="field">
+            <span>犬の名前</span>
+            <input id="settingDogName" type="text" autocomplete="off" placeholder="例: ポチ" />
+          </label>
+
+          <label class="field">
+            <span>パスワード</span>
+            <input id="settingPassword" type="password" autocomplete="new-password" placeholder="パスワードを入力" />
+          </label>
+
+          <label class="field">
+            <span>音声認識の言語</span>
+            <select id="settingLanguage">
+              <option value="ja-JP">日本語</option>
+              <option value="en-US">English</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>人物検出の感度</span>
+            <input id="settingSensitivity" type="range" min="35" max="75" step="5" />
+            <output id="sensitivityOutput" for="settingSensitivity"></output>
+          </label>
+
+          <label class="toggle-row">
+            <input id="settingMirror" type="checkbox" />
+            <span>前面カメラ用に左右反転する</span>
+          </label>
+
+          <label class="toggle-row">
+            <input id="settingSpeech" type="checkbox" />
+            <span>動作中表示で文字起こしを使う</span>
+          </label>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">保存</button>
+            <button id="resetSettingsButton" class="secondary-button" type="button">初期化</button>
+          </div>
+        </form>
       </section>
 
-      <nav class="demo-grid" aria-label="デモページ">
-        <a class="demo-card person-card" href="./person-detection/">
-          <span class="demo-icon" aria-hidden="true">◎</span>
-          <span class="demo-body">
-            <span class="demo-label">Camera</span>
-            <strong>人物中心ズレ検知</strong>
-            <span>スマホのカメラで人物を検知し、画面中央からのズレに合わせて目が追従します。</span>
-          </span>
-          <span class="demo-action">開く</span>
-        </a>
+      <section id="product" class="page" data-page="product" aria-labelledby="productTitle">
+        <div class="product-layout">
+          <div class="page-heading">
+            <p class="eyebrow">Product</p>
+            <h1 id="productTitle">スマホの目を持つ犬型ロボット</h1>
+            <p>
+              犬型ロボットの目の部分にスマートフォンを横向きで埋め込み、画面に表情豊かな目を表示します。
+              カメラとマイクで人や声を認識し、呼びかけに合わせて鳴いたり近づいたりします。
+            </p>
+          </div>
 
-        <a class="demo-card sound-card" href="./sound-transcription/">
-          <span class="demo-icon" aria-hidden="true">♪</span>
-          <span class="demo-body">
-            <span class="demo-label">Speech</span>
-            <strong>スマホ文字起こし</strong>
-            <span>スマホのマイクで話した内容を、その場でテキストにします。</span>
-          </span>
-          <span class="demo-action">開く</span>
-        </a>
-      </nav>
+          <div class="robot-visual" aria-hidden="true">
+            <div class="robot-head">
+              <span class="ear left-ear"></span>
+              <span class="ear right-ear"></span>
+              <div class="phone-eye">
+              <svg viewBox="0 0 320 170" role="img" aria-label="追従する目の表示">
+                <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+                <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+                <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
+                <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
+                <g>
+                  <circle cx="100" cy="91" r="18" fill="#071319" />
+                  <circle cx="220" cy="91" r="18" fill="#071319" />
+                  <circle cx="93" cy="82" r="5" fill="#ffffff" />
+                  <circle cx="213" cy="82" r="5" fill="#ffffff" />
+                </g>
+              </svg>
+              </div>
+              <span class="robot-nose"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span>01</span>
+            <h2>横向きスマホが目になる</h2>
+            <p>ロボットの顔に埋め込んだスマートフォンへ、まばたきや視線移動を表示します。</p>
+          </article>
+          <article class="feature-card">
+            <span>02</span>
+            <h2>名前を呼ぶと鳴く</h2>
+            <p>あらかじめ設定した名前を聞き取ると、呼ばれたことに反応して鳴きます。</p>
+          </article>
+          <article class="feature-card">
+            <span>03</span>
+            <h2>「おいで」で駆け寄る</h2>
+            <p>「おいで」と言われるとカメラで人を見つけ、見つけた人の方向へ向かいます。</p>
+          </article>
+        </div>
+
+        <section class="visual-guide" aria-labelledby="visualGuideTitle">
+          <div class="section-title">
+            <p class="eyebrow">How It Works</p>
+            <h2 id="visualGuideTitle">ひと目でわかるしくみ</h2>
+          </div>
+
+          <div class="guide-grid">
+            <article class="guide-card phone-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="mini-robot">
+                  <span class="mini-ear left"></span>
+                  <span class="mini-ear right"></span>
+                  <div class="mini-phone">
+                    <span class="mini-eye"></span>
+                    <span class="mini-eye"></span>
+                  </div>
+                  <span class="mini-nose"></span>
+                </div>
+              </div>
+              <h3>スマホを横向きにして目にする</h3>
+              <p>画面いっぱいに目を出すので、表情や視線が遠くからでも見えます。</p>
+            </article>
+
+            <article class="guide-card word-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="sound-wave">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="word-bubble">ポチ!</div>
+                <div class="bark-bubble">ワン!</div>
+              </div>
+              <h3>名前を呼ぶと鳴く</h3>
+              <p>設定した名前を聞き取ると、呼ばれた合図として鳴き声で返します。</p>
+            </article>
+
+            <article class="guide-card come-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="person-icon">
+                  <span></span>
+                </div>
+                <div class="route-line">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="small-dog">
+                  <span class="dog-ear"></span>
+                  <span class="dog-body"></span>
+                </div>
+              </div>
+              <h3>「おいで」で人の方へ行く</h3>
+              <p>声を合図にカメラで人を探し、見つけた人へ向かって移動します。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="behavior-flow" aria-label="動作の流れ">
+          <h2>動作の流れ</h2>
+          <ol>
+            <li>
+              <strong>待機</strong>
+              <span>目を表示しながら、登録した名前と「おいで」という言葉を待ちます。</span>
+            </li>
+            <li>
+              <strong>名前に反応</strong>
+              <span>名前を呼ばれると、犬のように鳴いて反応します。</span>
+            </li>
+            <li>
+              <strong>人を探す</strong>
+              <span>「おいで」を聞くとカメラで人を検出し、視線を人の方向へ向けます。</span>
+            </li>
+            <li>
+              <strong>駆け寄る</strong>
+              <span>検出した人の位置へ向かって移動する想定です。</span>
+            </li>
+          </ol>
+        </section>
+      </section>
+
+      <section id="check" class="page" data-page="check" aria-labelledby="checkTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Check</p>
+          <h1 id="checkTitle">動作確認ページ</h1>
+          <p>本番表示を開始する前に、ブラウザ、カメラ、マイク、音声認識の状態を確認します。</p>
+        </div>
+
+        <div class="check-grid">
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="browserDot"></span>
+              <h2>ブラウザ</h2>
+              <p id="browserCheckText">確認中</p>
+            </div>
+            <button id="browserCheckButton" class="secondary-button" type="button">再確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="cameraDot"></span>
+              <h2>カメラ</h2>
+              <p id="cameraCheckText">未確認</p>
+            </div>
+            <button id="cameraCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="micDot"></span>
+              <h2>マイク</h2>
+              <p id="micCheckText">未確認</p>
+            </div>
+            <button id="micCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="speechDot"></span>
+              <h2>音声認識</h2>
+              <p id="speechCheckText">未確認</p>
+            </div>
+            <button id="speechCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="running" class="page" data-page="running" aria-labelledby="runningTitle">
+        <div class="run-layout">
+          <section class="run-stage" aria-label="動作中の目表示">
+            <svg id="dogEyes" class="dog-eyes" viewBox="0 0 320 170" role="img" aria-label="人物を追いかける目">
+              <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+              <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+              <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
+              <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
+              <g id="pupilGroup">
+                <circle cx="100" cy="91" r="18" fill="#071319" />
+                <circle cx="220" cy="91" r="18" fill="#071319" />
+                <circle cx="93" cy="82" r="5" fill="#ffffff" />
+                <circle cx="213" cy="82" r="5" fill="#ffffff" />
+              </g>
+              <g class="blink-lids">
+                <rect class="lid top-lid" x="52" y="58" width="96" height="23" rx="12" fill="#182536" />
+                <rect class="lid top-lid" x="172" y="58" width="96" height="23" rx="12" fill="#182536" />
+                <rect class="lid bottom-lid" x="52" y="99" width="96" height="23" rx="12" fill="#182536" />
+                <rect class="lid bottom-lid" x="172" y="99" width="96" height="23" rx="12" fill="#182536" />
+              </g>
+            </svg>
+            <video id="video" class="hidden-camera" playsinline muted autoplay></video>
+            <canvas id="overlay" class="hidden-camera"></canvas>
+          </section>
+
+          <aside class="run-panel" aria-labelledby="runningTitle">
+            <p class="eyebrow">Live</p>
+            <h1 id="runningTitle">動作中表示ページ</h1>
+            <p id="runStatusText" class="run-status">開始待ち</p>
+
+            <div class="status-list">
+              <div>
+                <span>人物数</span>
+                <strong id="personCountText">0</strong>
+              </div>
+              <div>
+                <span>位置</span>
+                <strong id="directionText">未検出</strong>
+              </div>
+              <div>
+                <span>信頼度</span>
+                <strong id="confidenceText">--</strong>
+              </div>
+            </div>
+
+            <div class="run-actions">
+              <button id="startRunButton" class="primary-button" type="button">開始</button>
+              <button id="stopRunButton" class="secondary-button" type="button" disabled>停止</button>
+            </div>
+
+            <div id="speechPanel" class="speech-panel">
+              <div class="speech-header">
+                <span id="transcriptionStatus" class="status-pill">待機中</span>
+                <button id="transcribeButton" class="secondary-button" type="button">文字起こし開始</button>
+              </div>
+              <textarea id="transcriptText" class="transcript-box" readonly placeholder="文字起こし結果"></textarea>
+            </div>
+          </aside>
+        </div>
+      </section>
     </main>
-    <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistration("./").then((registration) => {
-          if (registration) registration.unregister();
-        });
-      }
-    </script>
+
+    <nav class="page-dock" aria-label="ページ切り替え">
+      <a href="#product" data-route="product">
+        <span aria-hidden="true">i</span>
+        製品説明
+      </a>
+      <a href="#settings" data-route="settings">
+        <span aria-hidden="true">⚙</span>
+        設定
+      </a>
+      <a href="#check" data-route="check">
+        <span aria-hidden="true">✓</span>
+        動作確認
+      </a>
+      <a href="#running" data-route="running">
+        <span aria-hidden="true">▶</span>
+        動作中
+      </a>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script src="./app.js" type="module"></script>
   </body>
 </html>
