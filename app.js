@@ -1,255 +1,252 @@
 const startButton = document.querySelector("#startButton");
-const resetButton = document.querySelector("#resetButton");
-const holdToggle = document.querySelector("#holdToggle");
-const bearingText = document.querySelector("#bearingText");
+const switchButton = document.querySelector("#switchButton");
+const mirrorToggle = document.querySelector("#mirrorToggle");
+const video = document.querySelector("#video");
+const overlay = document.querySelector("#overlay");
+const loadingState = document.querySelector("#loadingState");
+const offsetText = document.querySelector("#offsetText");
+const directionText = document.querySelector("#directionText");
+const xOffsetText = document.querySelector("#xOffsetText");
+const yOffsetText = document.querySelector("#yOffsetText");
+const xDirectionText = document.querySelector("#xDirectionText");
+const yDirectionText = document.querySelector("#yDirectionText");
+const personCountText = document.querySelector("#personCountText");
 const confidenceText = document.querySelector("#confidenceText");
-const levelText = document.querySelector("#levelText");
-const levelBar = document.querySelector("#levelBar");
-const balanceText = document.querySelector("#balanceText");
-const inputState = document.querySelector("#inputState");
-const needle = document.querySelector("#needle");
-const sweep = document.querySelector("#sweep");
+const ctx = overlay.getContext("2d");
 
 const state = {
-  audioContext: null,
-  leftAnalyser: null,
-  rightAnalyser: null,
-  leftData: null,
-  rightData: null,
+  model: null,
   stream: null,
-  channelCount: null,
   running: false,
-  lastEstimate: null,
-  smoothedScore: 0,
-  smoothedConfidence: 0,
-  stableDirection: "center",
-  pendingDirection: null,
-  pendingSince: 0,
+  facingMode: "environment",
+  rafId: null,
+  detecting: false,
 };
 
-const MIN_ACTIVE_DB = -58;
-const CENTER_THRESHOLD = 0.08;
-const DIRECTION_THRESHOLD = 0.22;
-const MIN_CHANNEL_RATIO = 0.18;
-const MAX_LAG = 24;
-const LAG_WEIGHT = 0.06;
-const SWITCH_HOLD_MS = 650;
+const PERSON_SCORE_MIN = 0.45;
 
 startButton.addEventListener("click", start);
-resetButton.addEventListener("click", resetMeasurements);
+switchButton.addEventListener("click", switchCamera);
+mirrorToggle.addEventListener("change", updateMirrorMode);
+window.addEventListener("resize", resizeOverlay);
 
 async function start() {
   startButton.disabled = true;
-  startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定中';
+  startButton.innerHTML = '<span aria-hidden="true">&#8987;</span> 準備中';
+  loadingState.textContent = "モデルを読み込み中";
 
   try {
-    await startAudio();
+    await loadModel();
+    await startCamera();
     state.running = true;
-    requestAnimationFrame(tick);
+    switchButton.disabled = false;
+    startButton.innerHTML = '<span aria-hidden="true">&#10003;</span> 検知中';
+    loadingState.textContent = "人物を探しています";
+    detectLoop();
   } catch (error) {
     startButton.disabled = false;
-    startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定開始';
-    bearingText.textContent = "開始失敗";
-    confidenceText.textContent = error.message || "マイクの許可を確認してください";
+    startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> カメラ開始';
+    loadingState.textContent = "開始できませんでした";
+    directionText.textContent = error.message || "カメラの許可を確認してください";
   }
 }
 
-async function startAudio() {
+async function loadModel() {
+  if (state.model) return;
+  if (!window.cocoSsd) {
+    throw new Error("人物検知モデルを読み込めませんでした。通信状態を確認してください。");
+  }
+  state.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
+}
+
+async function startCamera() {
+  stopCamera();
+
   state.stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      channelCount: { ideal: 2 },
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
+    audio: false,
+    video: {
+      facingMode: { ideal: state.facingMode },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
     },
   });
 
-  state.audioContext = new AudioContext();
-  const source = state.audioContext.createMediaStreamSource(state.stream);
-  const splitter = state.audioContext.createChannelSplitter(2);
-
-  state.leftAnalyser = state.audioContext.createAnalyser();
-  state.rightAnalyser = state.audioContext.createAnalyser();
-  state.leftAnalyser.fftSize = 2048;
-  state.rightAnalyser.fftSize = 2048;
-  state.leftData = new Float32Array(state.leftAnalyser.fftSize);
-  state.rightData = new Float32Array(state.rightAnalyser.fftSize);
-
-  source.connect(splitter);
-  splitter.connect(state.leftAnalyser, 0);
-  splitter.connect(state.rightAnalyser, 1);
-
-  const [track] = state.stream.getAudioTracks();
-  const settings = track?.getSettings?.() || {};
-  state.channelCount = settings.channelCount || null;
-  inputState.textContent = state.channelCount >= 2
-    ? `2ch入力を確認 (${state.channelCount}ch)`
-    : "入力チャンネルを確認中";
+  video.srcObject = state.stream;
+  await video.play();
+  updateMirrorMode();
+  resizeOverlay();
 }
 
-function tick(now) {
-  if (!state.running || !state.leftAnalyser || !state.rightAnalyser) return;
-
-  state.leftAnalyser.getFloatTimeDomainData(state.leftData);
-  state.rightAnalyser.getFloatTimeDomainData(state.rightData);
-
-  const leftRms = getRms(state.leftData);
-  const rightRms = getRms(state.rightData);
-  const totalRms = (leftRms + rightRms) / 2;
-  const db = 20 * Math.log10(Math.max(totalRms, 0.00001));
-  const levelPercent = clamp((db + 70) / 45, 0, 1);
-
-  levelText.textContent = `${Math.round(db)} dB`;
-  levelBar.style.width = `${Math.round(levelPercent * 100)}%`;
-
-  if (!holdToggle.checked) {
-    state.lastEstimate = estimateDirection(leftRms, rightRms, db, now);
+function stopCamera() {
+  if (state.stream) {
+    state.stream.getTracks().forEach((track) => track.stop());
   }
-
-  renderEstimate(state.lastEstimate);
-  requestAnimationFrame(tick);
+  state.stream = null;
 }
 
-function estimateDirection(leftRms, rightRms, db, now) {
-  if (db < MIN_ACTIVE_DB) {
-    balanceText.textContent = "--";
-    inputState.textContent = "音が小さすぎます";
-    return { label: "音が小さい", angle: 0, confidence: 0, directional: false };
-  }
-
-  const loud = Math.max(leftRms, rightRms);
-  const quiet = Math.min(leftRms, rightRms);
-  const channelRatio = quiet / Math.max(loud, 0.000001);
-
-  // Mono microphones often appear as left = signal, right = silence after splitting.
-  // Treat that as unsupported instead of falsely saying "left".
-  if (channelRatio < MIN_CHANNEL_RATIO) {
-    balanceText.textContent = "単一";
-    inputState.textContent = "単一入力のため左右判定不可";
-    return { label: "方向不明", angle: 0, confidence: 0, directional: false };
-  }
-
-  const balance = (rightRms - leftRms) / Math.max(rightRms + leftRms, 0.000001);
-  const lagScore = estimateLagScore(state.leftData, state.rightData);
-  const score = clamp(balance * (1 - LAG_WEIGHT) + lagScore * LAG_WEIGHT, -1, 1);
-  const rawConfidence = clamp((Math.abs(score) - DIRECTION_THRESHOLD) / 0.35, 0, 1);
-
-  state.smoothedScore = state.smoothedScore * 0.88 + score * 0.12;
-  state.smoothedConfidence = state.smoothedConfidence * 0.75 + rawConfidence * 0.25;
-
-  const shownScore = state.smoothedScore;
-  const direction = stabilizeDirection(shownScore, now);
-  const confidence = direction === "center" ? 0.35 : state.smoothedConfidence;
-  balanceText.textContent = `${shownScore > 0 ? "+" : ""}${shownScore.toFixed(2)}`;
-
-  if (direction === "center") {
-    inputState.textContent = "左右差は小さめ";
-    return { label: "正面付近", angle: 0, confidence: 0.35, directional: true };
-  }
-
-  inputState.textContent = "左右差を検出";
-  return direction === "right"
-    ? { label: "右方向", angle: 90, confidence, directional: true }
-    : { label: "左方向", angle: 270, confidence, directional: true };
+async function switchCamera() {
+  state.facingMode = state.facingMode === "environment" ? "user" : "environment";
+  mirrorToggle.checked = state.facingMode === "user";
+  loadingState.textContent = "カメラを切り替え中";
+  await startCamera();
 }
 
-function stabilizeDirection(score, now) {
-  let nextDirection = state.stableDirection;
-
-  if (Math.abs(score) <= CENTER_THRESHOLD) {
-    nextDirection = "center";
-  } else if (Math.abs(score) >= DIRECTION_THRESHOLD) {
-    nextDirection = score > 0 ? "right" : "left";
-  }
-
-  if (nextDirection === state.stableDirection) {
-    state.pendingDirection = null;
-    state.pendingSince = 0;
-    return state.stableDirection;
-  }
-
-  if (state.pendingDirection !== nextDirection) {
-    state.pendingDirection = nextDirection;
-    state.pendingSince = now;
-    return state.stableDirection;
-  }
-
-  if (now - state.pendingSince >= SWITCH_HOLD_MS) {
-    state.stableDirection = nextDirection;
-    state.pendingDirection = null;
-    state.pendingSince = 0;
-  }
-
-  return state.stableDirection;
+function updateMirrorMode() {
+  video.classList.toggle("mirrored", mirrorToggle.checked);
+  overlay.classList.toggle("mirrored", mirrorToggle.checked);
 }
 
-function estimateLagScore(left, right) {
-  let bestLag = 0;
-  let bestCorrelation = -Infinity;
-
-  for (let lag = -MAX_LAG; lag <= MAX_LAG; lag += 1) {
-    let sum = 0;
-    let leftEnergy = 0;
-    let rightEnergy = 0;
-
-    for (let i = MAX_LAG; i < left.length - MAX_LAG; i += 1) {
-      const leftValue = left[i];
-      const rightValue = right[i + lag];
-      sum += leftValue * rightValue;
-      leftEnergy += leftValue * leftValue;
-      rightEnergy += rightValue * rightValue;
-    }
-
-    const correlation = sum / Math.sqrt(Math.max(leftEnergy * rightEnergy, 0.000001));
-    if (correlation > bestCorrelation) {
-      bestCorrelation = correlation;
-      bestLag = lag;
-    }
-  }
-
-  // Positive lag means the right channel lines up later, so the sound likely came from the left.
-  return clamp(-bestLag / MAX_LAG, -1, 1);
+function resizeOverlay() {
+  const rect = video.getBoundingClientRect();
+  const scale = window.devicePixelRatio || 1;
+  overlay.width = Math.max(1, Math.round(rect.width * scale));
+  overlay.height = Math.max(1, Math.round(rect.height * scale));
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
-function renderEstimate(estimate) {
-  if (!estimate) {
-    bearingText.textContent = "--";
-    confidenceText.textContent = "マイク入力待機中";
-    needle.style.opacity = "0.3";
-    sweep.style.opacity = "0.16";
+async function detectLoop() {
+  if (!state.running || state.detecting) return;
+  state.detecting = true;
+
+  try {
+    const predictions = await state.model.detect(video);
+    renderDetections(predictions);
+  } catch (error) {
+    loadingState.textContent = "検知でエラーが発生しました";
+  } finally {
+    state.detecting = false;
+    state.rafId = requestAnimationFrame(detectLoop);
+  }
+}
+
+function renderDetections(predictions) {
+  resizeOverlay();
+  const rect = video.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const people = predictions
+    .filter((item) => item.class === "person" && item.score >= PERSON_SCORE_MIN)
+    .sort((a, b) => b.score - a.score);
+
+  personCountText.textContent = String(people.length);
+
+  if (people.length === 0) {
+    loadingState.textContent = "人物を探しています";
+    offsetText.textContent = "--%";
+    xOffsetText.textContent = "--%";
+    yOffsetText.textContent = "--%";
+    directionText.textContent = "人物が画面に入るとズレを表示します";
+    xDirectionText.textContent = "--";
+    yDirectionText.textContent = "--";
+    confidenceText.textContent = "信頼度 --";
     return;
   }
 
-  const confidencePercent = Math.round(estimate.confidence * 100);
+  loadingState.textContent = "";
+  const mainPerson = people[0];
+  const metrics = getOffsetMetrics(mainPerson.bbox, video.videoWidth, video.videoHeight);
+  const displayBox = toDisplayBox(mainPerson.bbox, rect.width, rect.height);
 
-  bearingText.textContent = estimate.label;
-  confidenceText.textContent = estimate.directional
-    ? `信頼度 ${confidencePercent}%`
-    : "この端末では静止したままの方向推定ができません";
-  needle.style.transform = `rotate(${estimate.angle}deg)`;
-  sweep.style.transform = `rotate(${estimate.angle}deg)`;
-  needle.style.opacity = String(0.28 + estimate.confidence * 0.72);
-  sweep.style.opacity = String(0.14 + estimate.confidence * 0.54);
+  drawCenter(rect.width, rect.height);
+  people.slice(0, 5).forEach((person, index) => {
+    drawDetection(toDisplayBox(person.bbox, rect.width, rect.height), person.score, index === 0);
+  });
+
+  offsetText.textContent = `${metrics.total}%`;
+  xOffsetText.textContent = `${Math.abs(metrics.x)}%`;
+  yOffsetText.textContent = `${Math.abs(metrics.y)}%`;
+  xDirectionText.textContent = metrics.x === 0 ? "中央" : metrics.x > 0 ? "右にズレ" : "左にズレ";
+  yDirectionText.textContent = metrics.y === 0 ? "中央" : metrics.y > 0 ? "下にズレ" : "上にズレ";
+  directionText.textContent = getDirectionLabel(metrics);
+  confidenceText.textContent = `信頼度 ${Math.round(mainPerson.score * 100)}%`;
+
+  drawOffsetLine(displayBox.centerX, displayBox.centerY, rect.width / 2, rect.height / 2);
 }
 
-function resetMeasurements() {
-  state.lastEstimate = null;
-  state.smoothedScore = 0;
-  state.smoothedConfidence = 0;
-  state.stableDirection = "center";
-  state.pendingDirection = null;
-  state.pendingSince = 0;
-  balanceText.textContent = "--";
-  inputState.textContent = "マイク待機中";
-  renderEstimate(null);
+function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
+  const personCenterX = x + width / 2;
+  const personCenterY = y + height / 2;
+  const rawX = ((personCenterX - sourceWidth / 2) / (sourceWidth / 2)) * 100;
+  const normalizedX = mirrorToggle.checked ? -rawX : rawX;
+  const normalizedY = ((personCenterY - sourceHeight / 2) / (sourceHeight / 2)) * 100;
+  const total = Math.hypot(normalizedX, normalizedY);
+
+  return {
+    x: Math.round(clamp(normalizedX, -100, 100)),
+    y: Math.round(clamp(normalizedY, -100, 100)),
+    total: Math.round(clamp(total, 0, 100)),
+  };
 }
 
-function getRms(buffer) {
-  let sum = 0;
-  for (const value of buffer) {
-    sum += value * value;
-  }
-  return Math.sqrt(sum / buffer.length);
+function getDirectionLabel(metrics) {
+  if (metrics.total <= 5) return "ほぼ中央です";
+
+  const horizontal = Math.abs(metrics.x) <= 5 ? "" : metrics.x > 0 ? "右" : "左";
+  const vertical = Math.abs(metrics.y) <= 5 ? "" : metrics.y > 0 ? "下" : "上";
+  return `${vertical}${horizontal}へ${metrics.total}%ズレています`;
+}
+
+function toDisplayBox([x, y, width, height], displayWidth, displayHeight) {
+  const scaleX = displayWidth / video.videoWidth;
+  const scaleY = displayHeight / video.videoHeight;
+  const left = x * scaleX;
+  const top = y * scaleY;
+  const boxWidth = width * scaleX;
+  const boxHeight = height * scaleY;
+
+  return {
+    left,
+    top,
+    width: boxWidth,
+    height: boxHeight,
+    centerX: left + boxWidth / 2,
+    centerY: top + boxHeight / 2,
+  };
+}
+
+function drawCenter(width, height) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.36)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.moveTo(width / 2, 0);
+  ctx.lineTo(width / 2, height);
+  ctx.moveTo(0, height / 2);
+  ctx.lineTo(width, height / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDetection(box, score, isPrimary) {
+  ctx.save();
+  ctx.strokeStyle = isPrimary ? "#2dd4bf" : "rgba(255, 255, 255, 0.66)";
+  ctx.fillStyle = isPrimary ? "rgba(45, 212, 191, 0.16)" : "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = isPrimary ? 4 : 2;
+  ctx.beginPath();
+  ctx.roundRect(box.left, box.top, box.width, box.height, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = isPrimary ? "#2dd4bf" : "rgba(255, 255, 255, 0.86)";
+  ctx.beginPath();
+  ctx.arc(box.centerX, box.centerY, isPrimary ? 7 : 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = "700 14px system-ui, sans-serif";
+  ctx.fillText(`${Math.round(score * 100)}%`, box.left + 10, Math.max(20, box.top - 8));
+  ctx.restore();
+}
+
+function drawOffsetLine(personX, personY, centerX, centerY) {
+  ctx.save();
+  ctx.strokeStyle = "#f59e0b";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(personX, personY);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function clamp(value, min, max) {

@@ -1,9 +1,9 @@
 {
-  "name": "音源方向推定",
-  "short_name": "音源方向",
+  "name": "人物中心ズレ検知",
+  "short_name": "人物検知",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0b1020",
+  "background_color": "#0a0f1f",
   "theme_color": "#0f172a",
   "icons": []
 }
