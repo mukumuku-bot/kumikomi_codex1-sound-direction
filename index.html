@@ -16,25 +16,51 @@
           class="dog-eyes"
           viewBox="0 0 320 170"
           role="img"
-          aria-label="人を追いかける犬風の目"
+          aria-label="人を追いかけるロボットの目"
         >
-          <path d="M32 44 C58 20, 98 21, 124 47" fill="none" stroke="#3a2418" stroke-width="14" stroke-linecap="round" />
-          <path d="M196 47 C222 21, 262 20, 288 44" fill="none" stroke="#3a2418" stroke-width="14" stroke-linecap="round" />
-          <ellipse cx="96" cy="86" rx="50" ry="42" fill="#fff7ea" stroke="#3a2418" stroke-width="5" />
-          <ellipse cx="224" cy="86" rx="50" ry="42" fill="#fff7ea" stroke="#3a2418" stroke-width="5" />
+          <defs>
+            <linearGradient id="lensFill" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#dffbff" />
+              <stop offset="0.52" stop-color="#7de8ff" />
+              <stop offset="1" stop-color="#145d72" />
+            </linearGradient>
+            <linearGradient id="rimFill" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#7f8ea3" />
+              <stop offset="1" stop-color="#1c2838" />
+            </linearGradient>
+            <filter id="eyeGlow">
+              <feGaussianBlur stdDeviation="2.7" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <path d="M40 58 L74 32 H118 L146 58" fill="none" stroke="#9aa8ba" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M174 58 L202 32 H246 L280 58" fill="none" stroke="#9aa8ba" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+          <ellipse cx="96" cy="88" rx="58" ry="47" fill="url(#rimFill)" stroke="#c9d7e7" stroke-width="5" />
+          <ellipse cx="224" cy="88" rx="58" ry="47" fill="url(#rimFill)" stroke="#c9d7e7" stroke-width="5" />
+          <ellipse cx="96" cy="88" rx="43" ry="33" fill="url(#lensFill)" stroke="#0c2530" stroke-width="4" filter="url(#eyeGlow)" />
+          <ellipse cx="224" cy="88" rx="43" ry="33" fill="url(#lensFill)" stroke="#0c2530" stroke-width="4" filter="url(#eyeGlow)" />
+          <path d="M60 134 H260" stroke="#5fdcff" stroke-width="3" stroke-linecap="round" opacity="0.7" />
+          <circle cx="52" cy="88" r="5" fill="#c9d7e7" />
+          <circle cx="140" cy="88" r="5" fill="#c9d7e7" />
+          <circle cx="180" cy="88" r="5" fill="#c9d7e7" />
+          <circle cx="268" cy="88" r="5" fill="#c9d7e7" />
           <g id="pupilGroup">
-            <ellipse cx="96" cy="90" rx="18" ry="23" fill="#1b1410" />
-            <ellipse cx="224" cy="90" rx="18" ry="23" fill="#1b1410" />
-            <circle cx="88" cy="80" r="6" fill="#ffffff" />
-            <circle cx="216" cy="80" r="6" fill="#ffffff" />
+            <ellipse cx="96" cy="91" rx="16" ry="21" fill="#071319" />
+            <ellipse cx="224" cy="91" rx="16" ry="21" fill="#071319" />
+            <circle cx="96" cy="91" r="7" fill="#72f7ff" opacity="0.85" filter="url(#eyeGlow)" />
+            <circle cx="224" cy="91" r="7" fill="#72f7ff" opacity="0.85" filter="url(#eyeGlow)" />
+            <circle cx="88" cy="81" r="5" fill="#ffffff" />
+            <circle cx="216" cy="81" r="5" fill="#ffffff" />
           </g>
           <g class="blink-lids">
-            <rect class="lid top-lid left-lid" x="46" y="48" width="100" height="26" rx="15" fill="#6f452e" />
-            <rect class="lid top-lid right-lid" x="174" y="48" width="100" height="26" rx="15" fill="#6f452e" />
-            <rect class="lid bottom-lid left-lid" x="46" y="98" width="100" height="26" rx="15" fill="#6f452e" />
-            <rect class="lid bottom-lid right-lid" x="174" y="98" width="100" height="26" rx="15" fill="#6f452e" />
+            <rect class="lid top-lid left-lid" x="52" y="58" width="88" height="23" rx="11" fill="#263547" />
+            <rect class="lid top-lid right-lid" x="180" y="58" width="88" height="23" rx="11" fill="#263547" />
+            <rect class="lid bottom-lid left-lid" x="52" y="98" width="88" height="23" rx="11" fill="#263547" />
+            <rect class="lid bottom-lid right-lid" x="180" y="98" width="88" height="23" rx="11" fill="#263547" />
           </g>
-          <ellipse cx="160" cy="132" rx="19" ry="13" fill="#2b1a12" />
         </svg>
       </section>
 
