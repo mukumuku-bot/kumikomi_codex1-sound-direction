@@ -180,12 +180,17 @@
 
       <section id="check" class="page" data-page="check" aria-labelledby="checkTitle">
         <div class="page-heading">
-          <p class="eyebrow">Check</p>
-          <h1 id="checkTitle">動作確認ページ</h1>
-          <p>本番表示を開始する前に、ブラウザ、カメラ、マイク、音声認識の状態を確認します。</p>
+          <p class="eyebrow">Diagnostics</p>
+          <h1 id="checkTitle">動作診断ページ</h1>
+          <p>動作中ページで不具合が出たときに、カメラ、人物検出、マイク、音声認識、鳴き声のどこで止まっているかを確認します。</p>
         </div>
 
-        <div class="check-grid">
+        <div class="diagnostic-actions">
+          <button id="runAllChecksButton" class="primary-button" type="button">まとめて診断</button>
+          <button id="barkCheckButton" class="secondary-button" type="button">鳴き声テスト</button>
+        </div>
+
+        <div class="check-grid diagnostic-grid">
           <article class="check-card">
             <div>
               <span class="status-dot" id="browserDot"></span>
@@ -206,6 +211,15 @@
 
           <article class="check-card">
             <div>
+              <span class="status-dot" id="modelDot"></span>
+              <h2>人物検出</h2>
+              <p id="modelCheckText">未確認</p>
+            </div>
+            <button id="modelCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
               <span class="status-dot" id="micDot"></span>
               <h2>マイク</h2>
               <p id="micCheckText">未確認</p>
@@ -221,6 +235,15 @@
             </div>
             <button id="speechCheckButton" class="secondary-button" type="button">確認</button>
           </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="barkDot"></span>
+              <h2>鳴き声</h2>
+              <p id="barkCheckText">未確認</p>
+            </div>
+            <button class="secondary-button" type="button" data-bark-trigger>確認</button>
+          </article>
         </div>
 
         <section class="voice-check-panel" aria-label="音声確認結果">
@@ -234,6 +257,15 @@
             <div class="volume-meter" aria-hidden="true">
               <span id="volumeBar"></span>
             </div>
+          </div>
+        </section>
+
+        <section class="diagnostic-help" aria-label="原因の見方">
+          <h2>原因の見方</h2>
+          <div>
+            <p><strong>目が追従しない</strong><span>カメラと人物検出を確認してください。</span></p>
+            <p><strong>名前に反応しない</strong><span>マイク、音声認識、文字起こし結果を確認してください。</span></p>
+            <p><strong>鳴かない</strong><span>鳴き声テストで音が出るか確認してください。</span></p>
           </div>
         </section>
       </section>

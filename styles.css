@@ -757,6 +757,16 @@ button:disabled {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.diagnostic-actions {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.diagnostic-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .check-card {
   display: grid;
   align-content: space-between;
@@ -818,6 +828,43 @@ button:disabled {
   border-radius: inherit;
   background: linear-gradient(90deg, var(--accent), #fbbf24, #fb7185);
   transition: width 90ms linear;
+}
+
+.diagnostic-help {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 24, 40, 0.72);
+}
+
+.diagnostic-help h2 {
+  margin-bottom: 12px;
+}
+
+.diagnostic-help div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diagnostic-help p {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(248, 250, 252, 0.12);
+  border-radius: 8px;
+  background: rgba(24, 34, 48, 0.62);
+}
+
+.diagnostic-help strong,
+.diagnostic-help span {
+  display: block;
+}
+
+.diagnostic-help span {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .status-dot {
@@ -974,7 +1021,9 @@ body.is-running-page .dog-eyes {
   .settings-grid,
   .feature-grid,
   .check-grid,
+  .diagnostic-grid,
   .voice-check-panel,
+  .diagnostic-help div,
   .guide-grid,
   .behavior-flow ol {
     grid-template-columns: 1fr 1fr;
@@ -1006,7 +1055,9 @@ body.is-running-page .dog-eyes {
   .settings-grid,
   .feature-grid,
   .check-grid,
+  .diagnostic-grid,
   .voice-check-panel,
+  .diagnostic-help div,
   .guide-grid,
   .behavior-flow ol,
   .speech-header {
@@ -1022,7 +1073,8 @@ body.is-running-page .dog-eyes {
   }
 
   .form-actions,
-  .run-actions {
+  .run-actions,
+  .diagnostic-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
   }

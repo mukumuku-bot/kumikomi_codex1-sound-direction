@@ -14,19 +14,27 @@ const elements = {
   resetSettingsButton: document.querySelector("#resetSettingsButton"),
   browserDot: document.querySelector("#browserDot"),
   cameraDot: document.querySelector("#cameraDot"),
+  modelDot: document.querySelector("#modelDot"),
   micDot: document.querySelector("#micDot"),
   speechDot: document.querySelector("#speechDot"),
+  barkDot: document.querySelector("#barkDot"),
   browserCheckText: document.querySelector("#browserCheckText"),
   cameraCheckText: document.querySelector("#cameraCheckText"),
+  modelCheckText: document.querySelector("#modelCheckText"),
   micCheckText: document.querySelector("#micCheckText"),
   speechCheckText: document.querySelector("#speechCheckText"),
+  barkCheckText: document.querySelector("#barkCheckText"),
   checkTranscriptText: document.querySelector("#checkTranscriptText"),
   volumeText: document.querySelector("#volumeText"),
   volumeBar: document.querySelector("#volumeBar"),
   browserCheckButton: document.querySelector("#browserCheckButton"),
   cameraCheckButton: document.querySelector("#cameraCheckButton"),
+  modelCheckButton: document.querySelector("#modelCheckButton"),
   micCheckButton: document.querySelector("#micCheckButton"),
   speechCheckButton: document.querySelector("#speechCheckButton"),
+  runAllChecksButton: document.querySelector("#runAllChecksButton"),
+  barkCheckButton: document.querySelector("#barkCheckButton"),
+  barkTriggerButtons: document.querySelectorAll("[data-bark-trigger]"),
   startRunButton: document.querySelector("#startRunButton"),
   stopRunButton: document.querySelector("#stopRunButton"),
   dogEyes: document.querySelector("#dogEyes"),
@@ -81,8 +89,12 @@ elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
 elements.resetSettingsButton.addEventListener("click", resetSettings);
 elements.browserCheckButton.addEventListener("click", checkBrowser);
 elements.cameraCheckButton.addEventListener("click", checkCamera);
+elements.modelCheckButton.addEventListener("click", checkModel);
 elements.micCheckButton.addEventListener("click", checkMic);
 elements.speechCheckButton.addEventListener("click", checkSpeech);
+elements.runAllChecksButton.addEventListener("click", runAllChecks);
+elements.barkCheckButton.addEventListener("click", checkBark);
+elements.barkTriggerButtons.forEach((button) => button.addEventListener("click", checkBark));
 elements.startRunButton.addEventListener("click", startRun);
 elements.stopRunButton.addEventListener("click", stopRun);
 elements.transcribeButton.addEventListener("click", toggleTranscription);
@@ -179,6 +191,17 @@ async function checkCamera() {
   }
 }
 
+async function checkModel() {
+  setCheck(elements.modelDot, elements.modelCheckText, "is-warn", "人物検出モデルを読み込み中です");
+
+  try {
+    await loadModel();
+    setCheck(elements.modelDot, elements.modelCheckText, "is-ok", "人物検出モデルを利用できます");
+  } catch {
+    setCheck(elements.modelDot, elements.modelCheckText, "is-bad", "人物検出モデルを読み込めません。通信状態を確認してください");
+  }
+}
+
 async function checkMic() {
   setCheck(elements.micDot, elements.micCheckText, "is-warn", "確認中です");
 
@@ -200,6 +223,28 @@ function checkSpeech() {
   } else {
     setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "このブラウザは音声認識に未対応です");
   }
+}
+
+function checkBark() {
+  const audioContext = ensureBarkAudio();
+  if (!audioContext) {
+    setCheck(elements.barkDot, elements.barkCheckText, "is-bad", "このブラウザでは音を再生できません");
+    return;
+  }
+
+  bark(1);
+  setCheck(elements.barkDot, elements.barkCheckText, "is-ok", "鳴き声を再生しました");
+}
+
+async function runAllChecks() {
+  elements.runAllChecksButton.disabled = true;
+  checkBrowser();
+  await checkCamera();
+  await checkModel();
+  await checkMic();
+  checkBark();
+  checkSpeech();
+  elements.runAllChecksButton.disabled = false;
 }
 
 function getMediaErrorMessage(error, label) {
