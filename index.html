@@ -18,48 +18,21 @@
           role="img"
           aria-label="人を追いかけるロボットの目"
         >
-          <defs>
-            <linearGradient id="lensFill" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0" stop-color="#dffbff" />
-              <stop offset="0.52" stop-color="#7de8ff" />
-              <stop offset="1" stop-color="#145d72" />
-            </linearGradient>
-            <linearGradient id="rimFill" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0" stop-color="#7f8ea3" />
-              <stop offset="1" stop-color="#1c2838" />
-            </linearGradient>
-            <filter id="eyeGlow">
-              <feGaussianBlur stdDeviation="2.7" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <path d="M40 58 L74 32 H118 L146 58" fill="none" stroke="#9aa8ba" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M174 58 L202 32 H246 L280 58" fill="none" stroke="#9aa8ba" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
-          <ellipse cx="96" cy="88" rx="58" ry="47" fill="url(#rimFill)" stroke="#c9d7e7" stroke-width="5" />
-          <ellipse cx="224" cy="88" rx="58" ry="47" fill="url(#rimFill)" stroke="#c9d7e7" stroke-width="5" />
-          <ellipse cx="96" cy="88" rx="43" ry="33" fill="url(#lensFill)" stroke="#0c2530" stroke-width="4" filter="url(#eyeGlow)" />
-          <ellipse cx="224" cy="88" rx="43" ry="33" fill="url(#lensFill)" stroke="#0c2530" stroke-width="4" filter="url(#eyeGlow)" />
-          <path d="M60 134 H260" stroke="#5fdcff" stroke-width="3" stroke-linecap="round" opacity="0.7" />
-          <circle cx="52" cy="88" r="5" fill="#c9d7e7" />
-          <circle cx="140" cy="88" r="5" fill="#c9d7e7" />
-          <circle cx="180" cy="88" r="5" fill="#c9d7e7" />
-          <circle cx="268" cy="88" r="5" fill="#c9d7e7" />
+          <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+          <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
+          <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
+          <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
           <g id="pupilGroup">
-            <ellipse cx="96" cy="91" rx="16" ry="21" fill="#071319" />
-            <ellipse cx="224" cy="91" rx="16" ry="21" fill="#071319" />
-            <circle cx="96" cy="91" r="7" fill="#72f7ff" opacity="0.85" filter="url(#eyeGlow)" />
-            <circle cx="224" cy="91" r="7" fill="#72f7ff" opacity="0.85" filter="url(#eyeGlow)" />
-            <circle cx="88" cy="81" r="5" fill="#ffffff" />
-            <circle cx="216" cy="81" r="5" fill="#ffffff" />
+            <circle cx="100" cy="91" r="18" fill="#071319" />
+            <circle cx="220" cy="91" r="18" fill="#071319" />
+            <circle cx="93" cy="82" r="5" fill="#ffffff" />
+            <circle cx="213" cy="82" r="5" fill="#ffffff" />
           </g>
           <g class="blink-lids">
-            <rect class="lid top-lid left-lid" x="52" y="58" width="88" height="23" rx="11" fill="#263547" />
-            <rect class="lid top-lid right-lid" x="180" y="58" width="88" height="23" rx="11" fill="#263547" />
-            <rect class="lid bottom-lid left-lid" x="52" y="98" width="88" height="23" rx="11" fill="#263547" />
-            <rect class="lid bottom-lid right-lid" x="180" y="98" width="88" height="23" rx="11" fill="#263547" />
+            <rect class="lid top-lid left-lid" x="52" y="58" width="96" height="23" rx="12" fill="#182536" />
+            <rect class="lid top-lid right-lid" x="172" y="58" width="96" height="23" rx="12" fill="#182536" />
+            <rect class="lid bottom-lid left-lid" x="52" y="99" width="96" height="23" rx="12" fill="#182536" />
+            <rect class="lid bottom-lid right-lid" x="172" y="99" width="96" height="23" rx="12" fill="#182536" />
           </g>
         </svg>
       </section>

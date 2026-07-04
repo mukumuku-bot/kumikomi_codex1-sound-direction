@@ -3,7 +3,7 @@
   "short_name": "人物検知",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#132033",
+  "theme_color": "#132033",
   "icons": []
 }
