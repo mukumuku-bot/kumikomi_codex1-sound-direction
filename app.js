@@ -85,8 +85,9 @@ const speechState = {
 };
 
 const ctx = elements.overlay.getContext("2d");
-const EYE_RANGE_X = 18;
-const EYE_RANGE_Y = 12;
+const EYE_RANGE_X = 30;
+const EYE_RANGE_Y = 18;
+const EYE_TRACKING_RESPONSE = 0.42;
 const FACE_COVER_SWITCH_FRAMES = 8;
 
 window.addEventListener("hashchange", showRouteFromHash);
@@ -548,8 +549,8 @@ function getDirectionLabel(metrics) {
 function updateEyeTracking(xPercent, yPercent) {
   const targetX = clamp(xPercent / 100, -1, 1) * EYE_RANGE_X;
   const targetY = clamp(yPercent / 100, -1, 1) * EYE_RANGE_Y;
-  runState.eyeX = runState.eyeX * 0.72 + targetX * 0.28;
-  runState.eyeY = runState.eyeY * 0.72 + targetY * 0.28;
+  runState.eyeX = runState.eyeX * (1 - EYE_TRACKING_RESPONSE) + targetX * EYE_TRACKING_RESPONSE;
+  runState.eyeY = runState.eyeY * (1 - EYE_TRACKING_RESPONSE) + targetY * EYE_TRACKING_RESPONSE;
   elements.pupilGroup.setAttribute("transform", `translate(${runState.eyeX.toFixed(1)} ${runState.eyeY.toFixed(1)})`);
 }
 

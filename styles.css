@@ -896,8 +896,8 @@ body.is-running-page .run-stage,
 .dog-eyes {
   display: block;
   flex: 0 0 auto;
-  width: min(150vw, 1540px);
-  max-height: calc(100svh - 48px);
+  width: min(166vw, 1740px);
+  max-height: 100svh;
   overflow: visible;
   pointer-events: none;
   filter: drop-shadow(0 22px 42px rgba(0, 0, 0, 0.5));
@@ -905,7 +905,7 @@ body.is-running-page .run-stage,
 
 body.is-running-page .dog-eyes,
 .person-run-screen.is-live .dog-eyes {
-  width: min(156vw, 1600px);
+  width: min(174vw, 1840px);
   max-height: 100svh;
 }
 
@@ -1117,7 +1117,7 @@ body.is-running-page .dog-eyes,
   }
 
   .dog-eyes {
-    width: min(150vw, 1060px);
+    width: min(172vw, 1240px);
   }
 }
 
@@ -1197,8 +1197,8 @@ body.is-running-page .dog-eyes,
   }
 
   .dog-eyes {
-    width: min(166vw, 900px);
-    max-height: calc(100svh - 48px);
+    width: min(188vw, 1040px);
+    max-height: 100svh;
   }
 
   .run-floating-controls {
