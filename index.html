@@ -272,6 +272,13 @@
 
       <section id="running" class="page" data-page="running" aria-labelledby="runningTitle">
         <div class="person-run-screen">
+          <section class="run-start-panel" aria-labelledby="runningTitle">
+            <p class="eyebrow">Live</p>
+            <h1 id="runningTitle">動作中表示ページ</h1>
+            <p>動作を開始すると、画面には目だけを表示します。目の画面をタップすると、この開始画面に戻ります。</p>
+            <button id="startRunButton" class="primary-button" type="button">動作開始</button>
+          </section>
+
           <section class="run-stage" aria-label="人物を追いかける目">
             <svg id="dogEyes" class="dog-eyes" viewBox="0 0 320 170" role="img" aria-label="人物を追いかける目">
               <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
@@ -297,11 +304,9 @@
 
           <div class="run-floating-controls" aria-labelledby="runningTitle">
             <span id="runStatusText" class="run-status">開始待ち</span>
-            <button id="startRunButton" class="invisible-run-button" type="button" aria-label="カメラ開始"></button>
             <button id="stopRunButton" class="visually-hidden" type="button" disabled>停止</button>
           </div>
 
-          <h1 id="runningTitle" class="visually-hidden">動作中表示ページ</h1>
           <div id="personCountText" class="visually-hidden">0</div>
           <div id="directionText" class="visually-hidden">未検出</div>
           <div id="confidenceText" class="visually-hidden">--</div>

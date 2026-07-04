@@ -39,6 +39,7 @@ const elements = {
   stopRunButton: document.querySelector("#stopRunButton"),
   dogEyes: document.querySelector("#dogEyes"),
   pupilGroup: document.querySelector("#pupilGroup"),
+  runStage: document.querySelector(".run-stage"),
   video: document.querySelector("#video"),
   overlay: document.querySelector("#overlay"),
   runStatusText: document.querySelector("#runStatusText"),
@@ -97,6 +98,9 @@ elements.barkCheckButton.addEventListener("click", checkBark);
 elements.barkTriggerButtons.forEach((button) => button.addEventListener("click", checkBark));
 elements.startRunButton.addEventListener("click", startRun);
 elements.stopRunButton.addEventListener("click", stopRun);
+elements.runStage.addEventListener("click", () => {
+  if (runState.running) stopRun();
+});
 elements.transcribeButton.addEventListener("click", toggleTranscription);
 
 applySettingsToForm();
@@ -117,15 +121,24 @@ function showRouteFromHash() {
     tab.classList.toggle("is-active", tab.dataset.route === currentRoute);
   });
 
-  document.body.classList.toggle("is-running-page", currentRoute === "running");
+  updateRunningViewMode();
 
   if (currentRoute !== "running" && currentRoute !== "check") {
     stopHiddenTranscription();
   }
 
+  if (currentRoute !== "running" && runState.running) {
+    stopRun();
+  }
+
   if (currentRoute !== "check") {
     stopVolumeMeter();
   }
+}
+
+function updateRunningViewMode() {
+  const route = window.location.hash.replace("#", "") || "product";
+  document.body.classList.toggle("is-running-page", route === "running" && runState.running);
 }
 
 function applySettingsToForm() {
@@ -270,6 +283,7 @@ async function startRun() {
     elements.video.srcObject = stream;
     await elements.video.play();
     runState.running = true;
+    updateRunningViewMode();
     elements.stopRunButton.disabled = false;
     elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
     await loadModel();
@@ -277,6 +291,8 @@ async function startRun() {
     startHiddenTranscription();
     detectLoop();
   } catch (error) {
+    runState.running = false;
+    updateRunningViewMode();
     elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
     elements.startRunButton.disabled = false;
     elements.stopRunButton.disabled = true;
@@ -291,6 +307,7 @@ function stopRun() {
   stopStream(runState.stream);
   runState.stream = null;
   elements.video.srcObject = null;
+  updateRunningViewMode();
   elements.startRunButton.disabled = false;
   elements.stopRunButton.disabled = true;
   elements.personCountText.textContent = "0";

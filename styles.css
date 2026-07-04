@@ -897,9 +897,34 @@ body.is-running-page .person-run-screen {
   min-height: 100svh;
 }
 
+.run-start-panel {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-height: calc(100svh - 174px);
+  max-width: 760px;
+  padding: clamp(24px, 7vw, 64px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(45, 212, 191, 0.16), transparent 34%),
+    rgba(24, 34, 48, 0.82);
+}
+
+.run-start-panel p:not(.eyebrow) {
+  max-width: 34rem;
+  margin: 14px 0 22px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+body.is-running-page .run-start-panel {
+  display: none;
+}
+
 .run-stage {
   position: relative;
-  display: grid;
+  display: none;
   min-height: calc(100svh - 174px);
   place-items: center;
   overflow: hidden;
@@ -911,9 +936,11 @@ body.is-running-page .person-run-screen {
 }
 
 body.is-running-page .run-stage {
+  display: grid;
   min-height: 100svh;
   border: 0;
   border-radius: 0;
+  cursor: pointer;
 }
 
 .dog-eyes {
@@ -983,24 +1010,6 @@ body.is-running-page .dog-eyes {
   position: fixed;
   inset: 0;
   z-index: 4;
-  pointer-events: none;
-}
-
-.invisible-run-button {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.invisible-run-button:disabled {
-  cursor: default;
   pointer-events: none;
 }
 
