@@ -1,5 +1,4 @@
 const startButton = document.querySelector("#startButton");
-const switchButton = document.querySelector("#switchButton");
 const mirrorToggle = document.querySelector("#mirrorToggle");
 const video = document.querySelector("#video");
 const overlay = document.querySelector("#overlay");
@@ -18,7 +17,6 @@ const state = {
   model: null,
   stream: null,
   running: false,
-  facingMode: "environment",
   rafId: null,
   detecting: false,
 };
@@ -26,20 +24,20 @@ const state = {
 const PERSON_SCORE_MIN = 0.45;
 
 startButton.addEventListener("click", start);
-switchButton.addEventListener("click", switchCamera);
 mirrorToggle.addEventListener("change", updateMirrorMode);
 window.addEventListener("resize", resizeOverlay);
 
 async function start() {
   startButton.disabled = true;
-  startButton.innerHTML = '<span aria-hidden="true">&#8987;</span> 準備中';
-  loadingState.textContent = "モデルを読み込み中";
+  startButton.innerHTML = '<span aria-hidden="true">&#8987;</span> カメラ起動中';
+  loadingState.textContent = "内カメラを起動中";
 
   try {
-    await loadModel();
     await startCamera();
     state.running = true;
-    switchButton.disabled = false;
+    startButton.innerHTML = '<span aria-hidden="true">&#8987;</span> モデル読み込み中';
+    loadingState.textContent = "人物検知モデルを読み込み中";
+    await loadModel();
     startButton.innerHTML = '<span aria-hidden="true">&#10003;</span> 検知中';
     loadingState.textContent = "人物を探しています";
     detectLoop();
@@ -62,14 +60,16 @@ async function loadModel() {
 async function startCamera() {
   stopCamera();
 
-  state.stream = await navigator.mediaDevices.getUserMedia({
+  const constraints = {
     audio: false,
     video: {
-      facingMode: { ideal: state.facingMode },
+      facingMode: "user",
       width: { ideal: 1280 },
       height: { ideal: 720 },
     },
-  });
+  };
+
+  state.stream = await navigator.mediaDevices.getUserMedia(constraints);
 
   video.srcObject = state.stream;
   await video.play();
@@ -82,13 +82,6 @@ function stopCamera() {
     state.stream.getTracks().forEach((track) => track.stop());
   }
   state.stream = null;
-}
-
-async function switchCamera() {
-  state.facingMode = state.facingMode === "environment" ? "user" : "environment";
-  mirrorToggle.checked = state.facingMode === "user";
-  loadingState.textContent = "カメラを切り替え中";
-  await startCamera();
 }
 
 function updateMirrorMode() {
