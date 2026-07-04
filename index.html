@@ -27,20 +27,63 @@
           class="dog-eyes"
           viewBox="0 0 320 170"
           role="img"
-          aria-label="人を追いかける犬風の目"
+          aria-label="人を追いかけるメカ犬風の目"
         >
-          <rect x="10" y="8" width="300" height="150" rx="58" fill="#8b5a3c" stroke="#f8efe3" stroke-width="5" />
-          <path d="M32 44 C58 20, 98 21, 124 47" fill="none" stroke="#3a2418" stroke-width="14" stroke-linecap="round" />
-          <path d="M196 47 C222 21, 262 20, 288 44" fill="none" stroke="#3a2418" stroke-width="14" stroke-linecap="round" />
-          <ellipse cx="96" cy="86" rx="50" ry="42" fill="#fff7ea" stroke="#3a2418" stroke-width="5" />
-          <ellipse cx="224" cy="86" rx="50" ry="42" fill="#fff7ea" stroke="#3a2418" stroke-width="5" />
+          <defs>
+            <linearGradient id="facePlate" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#b97b52" />
+              <stop offset="0.48" stop-color="#6e4934" />
+              <stop offset="1" stop-color="#253044" />
+            </linearGradient>
+            <linearGradient id="eyeGlass" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#fffaf1" />
+              <stop offset="0.58" stop-color="#d8fbff" />
+              <stop offset="1" stop-color="#93f4ff" />
+            </linearGradient>
+            <filter id="softGlow">
+              <feGaussianBlur stdDeviation="2.2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <rect x="10" y="8" width="300" height="150" rx="58" fill="url(#facePlate)" stroke="#f8efe3" stroke-width="5" />
+          <path d="M38 18 L76 2 L102 18" fill="#344155" stroke="#f8efe3" stroke-width="4" stroke-linejoin="round" />
+          <path d="M218 18 L244 2 L282 18" fill="#344155" stroke="#f8efe3" stroke-width="4" stroke-linejoin="round" />
+          <path d="M33 124 H287" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round" opacity="0.78" />
+          <path d="M32 44 C58 20, 98 21, 124 47" fill="none" stroke="#2f2018" stroke-width="14" stroke-linecap="round" />
+          <path d="M196 47 C222 21, 262 20, 288 44" fill="none" stroke="#2f2018" stroke-width="14" stroke-linecap="round" />
+          <g class="bolt-row">
+            <circle cx="38" cy="70" r="5" fill="#cbd5e1" />
+            <circle cx="282" cy="70" r="5" fill="#cbd5e1" />
+            <circle cx="54" cy="132" r="4" fill="#cbd5e1" />
+            <circle cx="266" cy="132" r="4" fill="#cbd5e1" />
+          </g>
+          <ellipse cx="96" cy="86" rx="56" ry="48" fill="none" stroke="#2dd4bf" stroke-width="4" opacity="0.85" filter="url(#softGlow)" />
+          <ellipse cx="224" cy="86" rx="56" ry="48" fill="none" stroke="#2dd4bf" stroke-width="4" opacity="0.85" filter="url(#softGlow)" />
+          <ellipse cx="96" cy="86" rx="48" ry="40" fill="url(#eyeGlass)" stroke="#2f2018" stroke-width="5" />
+          <ellipse cx="224" cy="86" rx="48" ry="40" fill="url(#eyeGlass)" stroke="#2f2018" stroke-width="5" />
           <g id="pupilGroup">
-            <ellipse cx="96" cy="90" rx="18" ry="23" fill="#1b1410" />
-            <ellipse cx="224" cy="90" rx="18" ry="23" fill="#1b1410" />
+            <ellipse cx="96" cy="90" rx="18" ry="23" fill="#111827" />
+            <ellipse cx="224" cy="90" rx="18" ry="23" fill="#111827" />
+            <circle cx="96" cy="90" r="7" fill="#2dd4bf" opacity="0.82" filter="url(#softGlow)" />
+            <circle cx="224" cy="90" r="7" fill="#2dd4bf" opacity="0.82" filter="url(#softGlow)" />
             <circle cx="88" cy="80" r="6" fill="#ffffff" />
             <circle cx="216" cy="80" r="6" fill="#ffffff" />
           </g>
+          <g class="eyelids">
+            <rect class="lid top-lid left-lid" x="48" y="45" width="96" height="42" rx="22" fill="#493226" />
+            <rect class="lid top-lid right-lid" x="176" y="45" width="96" height="42" rx="22" fill="#493226" />
+            <rect class="lid bottom-lid left-lid" x="48" y="86" width="96" height="42" rx="22" fill="#493226" />
+            <rect class="lid bottom-lid right-lid" x="176" y="86" width="96" height="42" rx="22" fill="#493226" />
+          </g>
           <ellipse cx="160" cy="132" rx="19" ry="13" fill="#2b1a12" />
+          <path d="M142 148 Q160 158 178 148" fill="none" stroke="#ffdf8b" stroke-width="4" stroke-linecap="round" />
+          <g class="sleep-mark">
+            <text x="244" y="48">Z</text>
+            <text x="264" y="31">Z</text>
+          </g>
         </svg>
       </section>
 
