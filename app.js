@@ -17,22 +17,24 @@ const state = {
   leftData: null,
   rightData: null,
   stream: null,
-  isDirectionalInput: false,
   channelCount: null,
   running: false,
   lastEstimate: null,
+  smoothedScore: 0,
+  smoothedConfidence: 0,
 };
 
 const MIN_ACTIVE_DB = -58;
-const BALANCE_THRESHOLD = 0.12;
-const CONFIDENCE_GAIN = 3.8;
+const BALANCE_THRESHOLD = 0.09;
+const MIN_CHANNEL_RATIO = 0.18;
+const MAX_LAG = 24;
 
 startButton.addEventListener("click", start);
 resetButton.addEventListener("click", resetMeasurements);
 
 async function start() {
   startButton.disabled = true;
-  startButton.textContent = "測定中";
+  startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定中';
 
   try {
     await startAudio();
@@ -40,9 +42,9 @@ async function start() {
     requestAnimationFrame(tick);
   } catch (error) {
     startButton.disabled = false;
-    startButton.textContent = "測定開始";
+    startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定開始';
     bearingText.textContent = "開始失敗";
-    confidenceText.textContent = error.message || "権限を確認してください";
+    confidenceText.textContent = error.message || "マイクの許可を確認してください";
   }
 }
 
@@ -59,6 +61,7 @@ async function startAudio() {
   state.audioContext = new AudioContext();
   const source = state.audioContext.createMediaStreamSource(state.stream);
   const splitter = state.audioContext.createChannelSplitter(2);
+
   state.leftAnalyser = state.audioContext.createAnalyser();
   state.rightAnalyser = state.audioContext.createAnalyser();
   state.leftAnalyser.fftSize = 2048;
@@ -73,23 +76,21 @@ async function startAudio() {
   const [track] = state.stream.getAudioTracks();
   const settings = track?.getSettings?.() || {};
   state.channelCount = settings.channelCount || null;
-  state.isDirectionalInput = state.channelCount !== null && state.channelCount >= 2;
-  inputState.textContent = state.isDirectionalInput
-    ? `ステレオ入力 ${state.channelCount}ch`
-    : state.channelCount === 1
-      ? "単一入力のため方向は不明"
-      : "入力チャンネル確認中";
+  inputState.textContent = state.channelCount >= 2
+    ? `2ch入力を確認 (${state.channelCount}ch)`
+    : "入力チャンネルを確認中";
 }
 
-function tick(now) {
+function tick() {
   if (!state.running || !state.leftAnalyser || !state.rightAnalyser) return;
 
   state.leftAnalyser.getFloatTimeDomainData(state.leftData);
   state.rightAnalyser.getFloatTimeDomainData(state.rightData);
+
   const leftRms = getRms(state.leftData);
   const rightRms = getRms(state.rightData);
-  const rms = (leftRms + rightRms) / 2;
-  const db = 20 * Math.log10(Math.max(rms, 0.00001));
+  const totalRms = (leftRms + rightRms) / 2;
+  const db = 20 * Math.log10(Math.max(totalRms, 0.00001));
   const levelPercent = clamp((db + 70) / 45, 0, 1);
 
   levelText.textContent = `${Math.round(db)} dB`;
@@ -103,45 +104,74 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-function getRms(buffer) {
-  let sum = 0;
-  for (const value of buffer) {
-    sum += value * value;
-  }
-  return Math.sqrt(sum / buffer.length);
-}
-
 function estimateDirection(leftRms, rightRms, db) {
   if (db < MIN_ACTIVE_DB) {
     balanceText.textContent = "--";
+    inputState.textContent = "音が小さすぎます";
     return { label: "音が小さい", angle: 0, confidence: 0, directional: false };
   }
 
-  const balance = (rightRms - leftRms) / Math.max(rightRms + leftRms, 0.000001);
-  const hasUsableBalance = Math.abs(balance) >= BALANCE_THRESHOLD;
+  const loud = Math.max(leftRms, rightRms);
+  const quiet = Math.min(leftRms, rightRms);
+  const channelRatio = quiet / Math.max(loud, 0.000001);
 
-  if (!state.isDirectionalInput && !hasUsableBalance) {
+  // Mono microphones often appear as left = signal, right = silence after splitting.
+  // Treat that as unsupported instead of falsely saying "left".
+  if (channelRatio < MIN_CHANNEL_RATIO) {
     balanceText.textContent = "単一";
-    inputState.textContent = state.channelCount === 1
-      ? "単一入力のため方向は不明"
-      : "左右差が取れません";
+    inputState.textContent = "単一入力のため左右判定不可";
     return { label: "方向不明", angle: 0, confidence: 0, directional: false };
   }
 
-  if (!state.isDirectionalInput && hasUsableBalance) {
-    inputState.textContent = "左右差を検出";
-  }
+  const balance = (rightRms - leftRms) / Math.max(rightRms + leftRms, 0.000001);
+  const lagScore = estimateLagScore(state.leftData, state.rightData);
+  const score = clamp(balance * 0.75 + lagScore * 0.25, -1, 1);
+  const rawConfidence = clamp((Math.abs(score) - BALANCE_THRESHOLD) / 0.35, 0, 1);
 
-  const confidence = clamp((Math.abs(balance) - BALANCE_THRESHOLD) * CONFIDENCE_GAIN, 0, 1);
-  balanceText.textContent = `${balance > 0 ? "+" : ""}${balance.toFixed(2)}`;
+  state.smoothedScore = state.smoothedScore * 0.78 + score * 0.22;
+  state.smoothedConfidence = state.smoothedConfidence * 0.75 + rawConfidence * 0.25;
 
-  if (Math.abs(balance) < BALANCE_THRESHOLD) {
+  const shownScore = state.smoothedScore;
+  const confidence = state.smoothedConfidence;
+  balanceText.textContent = `${shownScore > 0 ? "+" : ""}${shownScore.toFixed(2)}`;
+
+  if (Math.abs(shownScore) < BALANCE_THRESHOLD) {
+    inputState.textContent = "左右差は小さめ";
     return { label: "正面付近", angle: 0, confidence: 0.35, directional: true };
   }
 
-  return balance > 0
+  inputState.textContent = "左右差を検出";
+  return shownScore > 0
     ? { label: "右方向", angle: 90, confidence, directional: true }
     : { label: "左方向", angle: 270, confidence, directional: true };
+}
+
+function estimateLagScore(left, right) {
+  let bestLag = 0;
+  let bestCorrelation = -Infinity;
+
+  for (let lag = -MAX_LAG; lag <= MAX_LAG; lag += 1) {
+    let sum = 0;
+    let leftEnergy = 0;
+    let rightEnergy = 0;
+
+    for (let i = MAX_LAG; i < left.length - MAX_LAG; i += 1) {
+      const leftValue = left[i];
+      const rightValue = right[i + lag];
+      sum += leftValue * rightValue;
+      leftEnergy += leftValue * leftValue;
+      rightEnergy += rightValue * rightValue;
+    }
+
+    const correlation = sum / Math.sqrt(Math.max(leftEnergy * rightEnergy, 0.000001));
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestLag = lag;
+    }
+  }
+
+  // Positive lag means the right channel lines up later, so the sound likely came from the left.
+  return clamp(-bestLag / MAX_LAG, -1, 1);
 }
 
 function renderEstimate(estimate) {
@@ -158,7 +188,7 @@ function renderEstimate(estimate) {
   bearingText.textContent = estimate.label;
   confidenceText.textContent = estimate.directional
     ? `信頼度 ${confidencePercent}%`
-    : "この入力では左右差を取れません";
+    : "この端末では静止したままの方向推定ができません";
   needle.style.transform = `rotate(${estimate.angle}deg)`;
   sweep.style.transform = `rotate(${estimate.angle}deg)`;
   needle.style.opacity = String(0.28 + estimate.confidence * 0.72);
@@ -167,8 +197,19 @@ function renderEstimate(estimate) {
 
 function resetMeasurements() {
   state.lastEstimate = null;
+  state.smoothedScore = 0;
+  state.smoothedConfidence = 0;
   balanceText.textContent = "--";
+  inputState.textContent = "マイク待機中";
   renderEstimate(null);
+}
+
+function getRms(buffer) {
+  let sum = 0;
+  for (const value of buffer) {
+    sum += value * value;
+  }
+  return Math.sqrt(sum / buffer.length);
 }
 
 function clamp(value, min, max) {
