@@ -225,8 +225,8 @@
       </section>
 
       <section id="running" class="page" data-page="running" aria-labelledby="runningTitle">
-        <div class="run-layout">
-          <section class="run-stage" aria-label="動作中の目表示">
+        <div class="person-run-screen">
+          <section class="run-stage" aria-label="人物を追いかける目">
             <svg id="dogEyes" class="dog-eyes" viewBox="0 0 320 170" role="img" aria-label="人物を追いかける目">
               <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
               <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
@@ -249,39 +249,21 @@
             <canvas id="overlay" class="hidden-camera"></canvas>
           </section>
 
-          <aside class="run-panel" aria-labelledby="runningTitle">
-            <p class="eyebrow">Live</p>
-            <h1 id="runningTitle">動作中表示ページ</h1>
-            <p id="runStatusText" class="run-status">開始待ち</p>
+          <div class="run-floating-controls" aria-labelledby="runningTitle">
+            <span id="runStatusText" class="run-status">開始待ち</span>
+            <button id="startRunButton" class="primary-button" type="button">カメラ開始</button>
+            <button id="stopRunButton" class="secondary-button" type="button" disabled>停止</button>
+          </div>
 
-            <div class="status-list">
-              <div>
-                <span>人物数</span>
-                <strong id="personCountText">0</strong>
-              </div>
-              <div>
-                <span>位置</span>
-                <strong id="directionText">未検出</strong>
-              </div>
-              <div>
-                <span>信頼度</span>
-                <strong id="confidenceText">--</strong>
-              </div>
-            </div>
-
-            <div class="run-actions">
-              <button id="startRunButton" class="primary-button" type="button">開始</button>
-              <button id="stopRunButton" class="secondary-button" type="button" disabled>停止</button>
-            </div>
-
-            <div id="speechPanel" class="speech-panel">
-              <div class="speech-header">
-                <span id="transcriptionStatus" class="status-pill">待機中</span>
-                <button id="transcribeButton" class="secondary-button" type="button">文字起こし開始</button>
-              </div>
-              <textarea id="transcriptText" class="transcript-box" readonly placeholder="文字起こし結果"></textarea>
-            </div>
-          </aside>
+          <h1 id="runningTitle" class="visually-hidden">動作中表示ページ</h1>
+          <div id="personCountText" class="visually-hidden">0</div>
+          <div id="directionText" class="visually-hidden">未検出</div>
+          <div id="confidenceText" class="visually-hidden">--</div>
+          <div id="speechPanel" class="visually-hidden" hidden>
+            <span id="transcriptionStatus">待機中</span>
+            <button id="transcribeButton" type="button">文字起こし開始</button>
+            <textarea id="transcriptText" readonly></textarea>
+          </div>
         </div>
       </section>
     </main>
