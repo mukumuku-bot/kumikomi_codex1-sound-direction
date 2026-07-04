@@ -136,7 +136,7 @@ canvas {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(45, 212, 191, 0.12), rgba(15, 23, 42, 0.5)),
+    linear-gradient(180deg, rgba(45, 212, 191, 0.1), rgba(15, 23, 42, 0.36)),
     #172033;
 }
 
@@ -153,82 +153,7 @@ canvas {
 }
 
 #pupilGroup {
-  transition: transform 130ms ease-out, opacity 180ms ease;
-  transform-origin: center;
-}
-
-.bolt-row circle {
-  filter: drop-shadow(0 0 3px rgba(45, 212, 191, 0.68));
-}
-
-.lid {
-  opacity: 0;
-  transition: transform 140ms ease-in-out, opacity 120ms ease-in-out;
-}
-
-.top-lid {
-  transform: translateY(-44px);
-}
-
-.bottom-lid {
-  transform: translateY(44px);
-}
-
-.dog-eyes.is-blinking .lid,
-.dog-eyes.is-sleeping .lid {
-  opacity: 1;
-}
-
-.dog-eyes.is-blinking .top-lid,
-.dog-eyes.is-sleeping .top-lid {
-  transform: translateY(0);
-}
-
-.dog-eyes.is-blinking .bottom-lid,
-.dog-eyes.is-sleeping .bottom-lid {
-  transform: translateY(0);
-}
-
-.dog-eyes.is-sleeping #pupilGroup {
-  opacity: 0.08;
-}
-
-.sleep-mark {
-  opacity: 0;
-  fill: #d8fbff;
-  font: 800 20px system-ui, sans-serif;
-  filter: drop-shadow(0 0 5px rgba(45, 212, 191, 0.78));
-}
-
-.dog-eyes.is-sleeping .sleep-mark {
-  opacity: 1;
-  animation: sleepFloat 1.8s ease-in-out infinite;
-}
-
-.dog-eyes.is-curious {
-  animation: curiousTilt 520ms ease-in-out;
-}
-
-@keyframes sleepFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-7px);
-  }
-}
-
-@keyframes curiousTilt {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-
-  45% {
-    transform: rotate(-2deg);
-  }
+  transition: transform 130ms ease-out;
 }
 
 .mirrored {
@@ -371,31 +296,6 @@ small {
     align-self: start;
     grid-template-columns: 1fr 1fr;
     padding-top: 0;
-  }
-
-  .eye-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    min-height: 100svh;
-    margin: 0;
-    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    border: 0;
-    border-radius: 0;
-    background:
-      radial-gradient(circle at 50% 45%, rgba(45, 212, 191, 0.18), transparent 36%),
-      linear-gradient(135deg, #09111f 0%, #1a2638 54%, #080b12 100%);
-  }
-
-  .dog-eyes {
-    width: min(92vw, 820px);
-    max-height: 92svh;
-  }
-
-  .topbar,
-  .camera-panel,
-  .readout-grid {
-    display: none;
   }
 }
 

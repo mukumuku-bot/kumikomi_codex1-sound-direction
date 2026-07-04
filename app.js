@@ -2,7 +2,6 @@ const startButton = document.querySelector("#startButton");
 const mirrorToggle = document.querySelector("#mirrorToggle");
 const video = document.querySelector("#video");
 const overlay = document.querySelector("#overlay");
-const eyeStage = document.querySelector(".eye-stage");
 const dogEyes = document.querySelector("#dogEyes");
 const pupilGroup = document.querySelector("#pupilGroup");
 const loadingState = document.querySelector("#loadingState");
@@ -24,25 +23,15 @@ const state = {
   detecting: false,
   eyeX: 0,
   eyeY: 0,
-  lastPersonAt: 0,
-  sleeping: false,
-  idleLookX: 0,
-  idleLookY: 0,
 };
 
 const PERSON_SCORE_MIN = 0.45;
-const EYE_RANGE_X = 22;
-const EYE_RANGE_Y = 15;
-const SLEEP_AFTER_MS = 9500;
-const IDLE_LOOK_MS = 2300;
+const EYE_RANGE_X = 18;
+const EYE_RANGE_Y = 13;
 
 startButton.addEventListener("click", start);
-eyeStage.addEventListener("click", () => {
-  if (!state.running && !startButton.disabled) start();
-});
 mirrorToggle.addEventListener("change", updateMirrorMode);
 window.addEventListener("resize", resizeOverlay);
-startEyeLife();
 
 async function start() {
   startButton.disabled = true;
@@ -141,7 +130,7 @@ function renderDetections(predictions) {
   personCountText.textContent = String(people.length);
 
   if (people.length === 0) {
-    updateIdleEyes();
+    updateEyeTracking(0, 0);
     loadingState.textContent = "人物を探しています";
     offsetText.textContent = "--%";
     xOffsetText.textContent = "--%";
@@ -154,8 +143,6 @@ function renderDetections(predictions) {
   }
 
   loadingState.textContent = "";
-  wakeEyes();
-  state.lastPersonAt = Date.now();
   const mainPerson = people[0];
   const metrics = getOffsetMetrics(mainPerson.bbox, video.videoWidth, video.videoHeight);
   const displayBox = toDisplayBox(mainPerson.bbox, rect.width, rect.height);
@@ -209,57 +196,6 @@ function updateEyeTracking(xPercent, yPercent) {
   dogEyes.style.setProperty("--look-x", `${state.eyeX.toFixed(1)}px`);
   dogEyes.style.setProperty("--look-y", `${state.eyeY.toFixed(1)}px`);
   pupilGroup.setAttribute("transform", `translate(${state.eyeX.toFixed(1)} ${state.eyeY.toFixed(1)})`);
-}
-
-function startEyeLife() {
-  state.lastPersonAt = Date.now();
-  scheduleBlink();
-  setInterval(() => {
-    if (Date.now() - state.lastPersonAt > SLEEP_AFTER_MS) {
-      sleepEyes();
-      return;
-    }
-
-    if (!state.running) {
-      updateIdleEyes();
-    }
-  }, IDLE_LOOK_MS);
-}
-
-function scheduleBlink() {
-  const delay = 1800 + Math.random() * 2800;
-  setTimeout(() => {
-    if (!state.sleeping) blinkEyes();
-    scheduleBlink();
-  }, delay);
-}
-
-function blinkEyes() {
-  dogEyes.classList.add("is-blinking");
-  setTimeout(() => dogEyes.classList.remove("is-blinking"), 150);
-}
-
-function sleepEyes() {
-  if (state.sleeping) return;
-  state.sleeping = true;
-  dogEyes.classList.add("is-sleeping");
-  updateEyeTracking(0, 18);
-}
-
-function wakeEyes() {
-  if (!state.sleeping) return;
-  state.sleeping = false;
-  dogEyes.classList.remove("is-sleeping");
-  dogEyes.classList.add("is-curious");
-  setTimeout(() => dogEyes.classList.remove("is-curious"), 560);
-  blinkEyes();
-}
-
-function updateIdleEyes() {
-  if (state.sleeping) return;
-  state.idleLookX = Math.sin(Date.now() / 900) * 22;
-  state.idleLookY = Math.cos(Date.now() / 1300) * 10;
-  updateEyeTracking(state.idleLookX, state.idleLookY);
 }
 
 function toDisplayBox([x, y, width, height], displayWidth, displayHeight) {

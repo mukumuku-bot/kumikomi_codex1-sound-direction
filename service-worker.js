@@ -1,4 +1,4 @@
-const CACHE_NAME = "person-offset-v8";
+const CACHE_NAME = "person-offset-v7";
 const FILES = [
   "./",
   "./index.html",
