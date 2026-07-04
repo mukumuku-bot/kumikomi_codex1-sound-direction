@@ -22,12 +22,18 @@ const state = {
   lastEstimate: null,
   smoothedScore: 0,
   smoothedConfidence: 0,
+  stableDirection: "center",
+  pendingDirection: null,
+  pendingSince: 0,
 };
 
 const MIN_ACTIVE_DB = -58;
-const BALANCE_THRESHOLD = 0.09;
+const CENTER_THRESHOLD = 0.08;
+const DIRECTION_THRESHOLD = 0.22;
 const MIN_CHANNEL_RATIO = 0.18;
 const MAX_LAG = 24;
+const LAG_WEIGHT = 0.06;
+const SWITCH_HOLD_MS = 650;
 
 startButton.addEventListener("click", start);
 resetButton.addEventListener("click", resetMeasurements);
@@ -81,7 +87,7 @@ async function startAudio() {
     : "入力チャンネルを確認中";
 }
 
-function tick() {
+function tick(now) {
   if (!state.running || !state.leftAnalyser || !state.rightAnalyser) return;
 
   state.leftAnalyser.getFloatTimeDomainData(state.leftData);
@@ -97,14 +103,14 @@ function tick() {
   levelBar.style.width = `${Math.round(levelPercent * 100)}%`;
 
   if (!holdToggle.checked) {
-    state.lastEstimate = estimateDirection(leftRms, rightRms, db);
+    state.lastEstimate = estimateDirection(leftRms, rightRms, db, now);
   }
 
   renderEstimate(state.lastEstimate);
   requestAnimationFrame(tick);
 }
 
-function estimateDirection(leftRms, rightRms, db) {
+function estimateDirection(leftRms, rightRms, db, now) {
   if (db < MIN_ACTIVE_DB) {
     balanceText.textContent = "--";
     inputState.textContent = "音が小さすぎます";
@@ -125,25 +131,56 @@ function estimateDirection(leftRms, rightRms, db) {
 
   const balance = (rightRms - leftRms) / Math.max(rightRms + leftRms, 0.000001);
   const lagScore = estimateLagScore(state.leftData, state.rightData);
-  const score = clamp(balance * 0.75 + lagScore * 0.25, -1, 1);
-  const rawConfidence = clamp((Math.abs(score) - BALANCE_THRESHOLD) / 0.35, 0, 1);
+  const score = clamp(balance * (1 - LAG_WEIGHT) + lagScore * LAG_WEIGHT, -1, 1);
+  const rawConfidence = clamp((Math.abs(score) - DIRECTION_THRESHOLD) / 0.35, 0, 1);
 
-  state.smoothedScore = state.smoothedScore * 0.78 + score * 0.22;
+  state.smoothedScore = state.smoothedScore * 0.88 + score * 0.12;
   state.smoothedConfidence = state.smoothedConfidence * 0.75 + rawConfidence * 0.25;
 
   const shownScore = state.smoothedScore;
-  const confidence = state.smoothedConfidence;
+  const direction = stabilizeDirection(shownScore, now);
+  const confidence = direction === "center" ? 0.35 : state.smoothedConfidence;
   balanceText.textContent = `${shownScore > 0 ? "+" : ""}${shownScore.toFixed(2)}`;
 
-  if (Math.abs(shownScore) < BALANCE_THRESHOLD) {
+  if (direction === "center") {
     inputState.textContent = "左右差は小さめ";
     return { label: "正面付近", angle: 0, confidence: 0.35, directional: true };
   }
 
   inputState.textContent = "左右差を検出";
-  return shownScore > 0
+  return direction === "right"
     ? { label: "右方向", angle: 90, confidence, directional: true }
     : { label: "左方向", angle: 270, confidence, directional: true };
+}
+
+function stabilizeDirection(score, now) {
+  let nextDirection = state.stableDirection;
+
+  if (Math.abs(score) <= CENTER_THRESHOLD) {
+    nextDirection = "center";
+  } else if (Math.abs(score) >= DIRECTION_THRESHOLD) {
+    nextDirection = score > 0 ? "right" : "left";
+  }
+
+  if (nextDirection === state.stableDirection) {
+    state.pendingDirection = null;
+    state.pendingSince = 0;
+    return state.stableDirection;
+  }
+
+  if (state.pendingDirection !== nextDirection) {
+    state.pendingDirection = nextDirection;
+    state.pendingSince = now;
+    return state.stableDirection;
+  }
+
+  if (now - state.pendingSince >= SWITCH_HOLD_MS) {
+    state.stableDirection = nextDirection;
+    state.pendingDirection = null;
+    state.pendingSince = 0;
+  }
+
+  return state.stableDirection;
 }
 
 function estimateLagScore(left, right) {
@@ -199,6 +236,9 @@ function resetMeasurements() {
   state.lastEstimate = null;
   state.smoothedScore = 0;
   state.smoothedConfidence = 0;
+  state.stableDirection = "center";
+  state.pendingDirection = null;
+  state.pendingSince = 0;
   balanceText.textContent = "--";
   inputState.textContent = "マイク待機中";
   renderEstimate(null);
