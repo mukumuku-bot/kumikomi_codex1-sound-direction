@@ -93,10 +93,11 @@ function updateMirrorMode() {
 }
 
 function resizeOverlay() {
-  const rect = video.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
-  overlay.width = Math.max(1, Math.round(rect.width * scale));
-  overlay.height = Math.max(1, Math.round(rect.height * scale));
+  const width = video.videoWidth || window.innerWidth;
+  const height = video.videoHeight || window.innerHeight;
+  overlay.width = Math.max(1, Math.round(width * scale));
+  overlay.height = Math.max(1, Math.round(height * scale));
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
@@ -117,8 +118,9 @@ async function detectLoop() {
 
 function renderDetections(predictions) {
   resizeOverlay();
-  const rect = video.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  const frameWidth = video.videoWidth || overlay.width;
+  const frameHeight = video.videoHeight || overlay.height;
+  ctx.clearRect(0, 0, frameWidth, frameHeight);
 
   const people = predictions
     .filter((item) => item.class === "person" && item.score >= PERSON_SCORE_MIN)
@@ -141,14 +143,8 @@ function renderDetections(predictions) {
 
   loadingState.textContent = "";
   const mainPerson = people[0];
-  const metrics = getOffsetMetrics(mainPerson.bbox, video.videoWidth, video.videoHeight);
-  const displayBox = toDisplayBox(mainPerson.bbox, rect.width, rect.height);
+  const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
-
-  drawCenter(rect.width, rect.height);
-  people.slice(0, 5).forEach((person, index) => {
-    drawDetection(toDisplayBox(person.bbox, rect.width, rect.height), person.score, index === 0);
-  });
 
   offsetText.textContent = `${metrics.total}%`;
   xOffsetText.textContent = `${Math.abs(metrics.x)}%`;
@@ -157,8 +153,6 @@ function renderDetections(predictions) {
   yDirectionText.textContent = metrics.y === 0 ? "中央" : metrics.y > 0 ? "下にズレ" : "上にズレ";
   directionText.textContent = getDirectionLabel(metrics);
   confidenceText.textContent = `信頼度 ${Math.round(mainPerson.score * 100)}%`;
-
-  drawOffsetLine(displayBox.centerX, displayBox.centerY, rect.width / 2, rect.height / 2);
 }
 
 function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
@@ -206,69 +200,6 @@ function scheduleBlink() {
 function blinkEyes() {
   dogEyes.classList.add("is-blinking");
   setTimeout(() => dogEyes.classList.remove("is-blinking"), 130);
-}
-
-function toDisplayBox([x, y, width, height], displayWidth, displayHeight) {
-  const scaleX = displayWidth / video.videoWidth;
-  const scaleY = displayHeight / video.videoHeight;
-  const left = x * scaleX;
-  const top = y * scaleY;
-  const boxWidth = width * scaleX;
-  const boxHeight = height * scaleY;
-
-  return {
-    left,
-    top,
-    width: boxWidth,
-    height: boxHeight,
-    centerX: left + boxWidth / 2,
-    centerY: top + boxHeight / 2,
-  };
-}
-
-function drawCenter(width, height) {
-  ctx.save();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.36)";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([8, 8]);
-  ctx.beginPath();
-  ctx.moveTo(width / 2, 0);
-  ctx.lineTo(width / 2, height);
-  ctx.moveTo(0, height / 2);
-  ctx.lineTo(width, height / 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawDetection(box, score, isPrimary) {
-  ctx.save();
-  ctx.strokeStyle = isPrimary ? "#2dd4bf" : "rgba(255, 255, 255, 0.66)";
-  ctx.fillStyle = isPrimary ? "rgba(45, 212, 191, 0.16)" : "rgba(255, 255, 255, 0.08)";
-  ctx.lineWidth = isPrimary ? 4 : 2;
-  ctx.beginPath();
-  ctx.roundRect(box.left, box.top, box.width, box.height, 12);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = isPrimary ? "#2dd4bf" : "rgba(255, 255, 255, 0.86)";
-  ctx.beginPath();
-  ctx.arc(box.centerX, box.centerY, isPrimary ? 7 : 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.font = "700 14px system-ui, sans-serif";
-  ctx.fillText(`${Math.round(score * 100)}%`, box.left + 10, Math.max(20, box.top - 8));
-  ctx.restore();
-}
-
-function drawOffsetLine(personX, personY, centerX, centerY) {
-  ctx.save();
-  ctx.strokeStyle = "#f59e0b";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.lineTo(personX, personY);
-  ctx.stroke();
-  ctx.restore();
 }
 
 function clamp(value, min, max) {

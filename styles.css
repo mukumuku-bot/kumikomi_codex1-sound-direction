@@ -31,9 +31,14 @@ input {
 
 .app-shell {
   display: grid;
+  position: relative;
+  z-index: 2;
   min-height: 100svh;
   place-items: center;
   padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% 42%, rgba(45, 212, 191, 0.14), transparent 36%),
+    linear-gradient(160deg, #0a0f1f 0%, #142033 52%, #080b12 100%);
 }
 
 .eye-stage {
@@ -90,10 +95,11 @@ input {
 
 .hidden-camera {
   position: fixed;
-  left: -2px;
-  top: -2px;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100svh;
+  object-fit: cover;
   opacity: 0;
   pointer-events: none;
 }
