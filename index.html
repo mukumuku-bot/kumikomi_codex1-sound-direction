@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101828" />
     <title>スマホ犬（Smartphone Dog）</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-10" />
+    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-11" />
   </head>
   <body>
     <header class="topbar">
@@ -20,22 +20,66 @@
     </header>
 
     <main class="page-shell">
+      <section id="account" class="page" data-page="account" aria-labelledby="accountTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Account</p>
+          <h1 id="accountTitle">アカウント作成・ログイン</h1>
+          <p>犬の名前をアカウントごとに保存します。パスワードはGitHubには置かず、Supabase Authで管理します。</p>
+        </div>
+
+        <div id="accountStatus" class="account-status">Supabase接続を確認しています</div>
+
+        <div class="account-grid">
+          <form id="signUpForm" class="account-card">
+            <h2>新規アカウント作成</h2>
+            <label class="field compact-field">
+              <span>メールアドレス</span>
+              <input id="signUpEmail" type="email" autocomplete="email" placeholder="例: dog@example.com" required />
+            </label>
+            <label class="field compact-field">
+              <span>パスワード</span>
+              <input id="signUpPassword" type="password" autocomplete="new-password" minlength="6" placeholder="6文字以上" required />
+            </label>
+            <label class="field compact-field">
+              <span>犬の名前</span>
+              <input id="signUpDogName" type="text" autocomplete="off" placeholder="例: ポチ" />
+            </label>
+            <button class="primary-button" type="submit">アカウント作成</button>
+          </form>
+
+          <form id="loginForm" class="account-card">
+            <h2>ログイン</h2>
+            <label class="field compact-field">
+              <span>メールアドレス</span>
+              <input id="loginEmail" type="email" autocomplete="email" placeholder="登録したメールアドレス" required />
+            </label>
+            <label class="field compact-field">
+              <span>パスワード</span>
+              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="パスワード" required />
+            </label>
+            <button class="primary-button" type="submit">ログイン</button>
+          </form>
+
+          <article class="account-card">
+            <h2>現在の状態</h2>
+            <p id="currentAccountText">未ログイン</p>
+            <p id="currentDogNameText">犬の名前: ポチ</p>
+            <button id="logoutButton" class="secondary-button" type="button" disabled>ログアウト</button>
+          </article>
+        </div>
+      </section>
+
       <section id="settings" class="page" data-page="settings" aria-labelledby="settingsTitle">
         <div class="page-heading">
           <p class="eyebrow">Settings</p>
           <h1 id="settingsTitle">設定ページ</h1>
-          <p>使用する機能、言語、カメラ表示の向きを調整します。設定はこの端末のブラウザに保存されます。</p>
+          <p>ログイン中は犬の名前をSupabaseに保存します。未ログインの場合は、この端末のブラウザに一時保存します。</p>
         </div>
 
         <form id="settingsForm" class="settings-grid">
           <label class="field">
             <span>犬の名前</span>
             <input id="settingDogName" type="text" autocomplete="off" placeholder="例: ポチ" />
-          </label>
-
-          <label class="field">
-            <span>パスワード</span>
-            <input id="settingPassword" type="password" autocomplete="new-password" placeholder="パスワードを入力" />
           </label>
 
           <div class="form-actions">
@@ -352,6 +396,10 @@
         <span aria-hidden="true">i</span>
         製品説明
       </a>
+      <a href="#account" data-route="account">
+        <span aria-hidden="true">@</span>
+        アカウント
+      </a>
       <a href="#settings" data-route="settings">
         <span aria-hidden="true">⚙</span>
         設定
@@ -369,6 +417,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
-    <script src="./app.js?v=alsok-inspired-10" type="module"></script>
+    <script src="./supabase-config.js?v=alsok-inspired-11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js?v=alsok-inspired-11" type="module"></script>
   </body>
 </html>

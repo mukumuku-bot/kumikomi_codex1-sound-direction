@@ -1,16 +1,25 @@
-const routes = ["settings", "product", "check", "running"];
+const routes = ["account", "settings", "product", "check", "running"];
 const defaultSettings = {
   dogName: "ポチ",
-  password: "",
 };
 
 const settings = loadSettings();
 const elements = {
   tabs: document.querySelectorAll("[data-route]"),
   pages: document.querySelectorAll("[data-page]"),
+  accountStatus: document.querySelector("#accountStatus"),
+  signUpForm: document.querySelector("#signUpForm"),
+  signUpEmail: document.querySelector("#signUpEmail"),
+  signUpPassword: document.querySelector("#signUpPassword"),
+  signUpDogName: document.querySelector("#signUpDogName"),
+  loginForm: document.querySelector("#loginForm"),
+  loginEmail: document.querySelector("#loginEmail"),
+  loginPassword: document.querySelector("#loginPassword"),
+  logoutButton: document.querySelector("#logoutButton"),
+  currentAccountText: document.querySelector("#currentAccountText"),
+  currentDogNameText: document.querySelector("#currentDogNameText"),
   settingsForm: document.querySelector("#settingsForm"),
   settingDogName: document.querySelector("#settingDogName"),
-  settingPassword: document.querySelector("#settingPassword"),
   resetSettingsButton: document.querySelector("#resetSettingsButton"),
   browserDot: document.querySelector("#browserDot"),
   cameraDot: document.querySelector("#cameraDot"),
@@ -84,6 +93,13 @@ const speechState = {
   volumeRafId: null,
 };
 
+const supabaseConfig = window.SMARTPHONE_DOG_SUPABASE || {};
+const supabaseClient = createSupabaseClient();
+const authState = {
+  user: null,
+  session: null,
+};
+
 const ctx = elements.overlay.getContext("2d");
 const EYE_RANGE_X = 30;
 const EYE_RANGE_Y = 18;
@@ -92,6 +108,9 @@ const FACE_COVER_SWITCH_FRAMES = 8;
 
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
+elements.signUpForm.addEventListener("submit", createAccount);
+elements.loginForm.addEventListener("submit", loginAccount);
+elements.logoutButton.addEventListener("click", logoutAccount);
 elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
 elements.resetSettingsButton.addEventListener("click", resetSettings);
 elements.browserCheckButton.addEventListener("click", checkBrowser);
@@ -111,6 +130,7 @@ elements.runScreen.addEventListener("click", (event) => {
 elements.transcribeButton.addEventListener("click", toggleTranscription);
 
 applySettingsToForm();
+initializeAuth();
 setupTranscription();
 checkBrowser();
 showRouteFromHash();
@@ -150,24 +170,211 @@ function updateRunningViewMode() {
   elements.runScreen.classList.toggle("is-live", live);
 }
 
+function createSupabaseClient() {
+  const url = String(supabaseConfig.url || "").trim();
+  const anonKey = String(supabaseConfig.anonKey || "").trim();
+  const configured = url.startsWith("https://") && anonKey.length > 20 && window.supabase?.createClient;
+  if (!configured) return null;
+  return window.supabase.createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+async function initializeAuth() {
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定です。supabase-config.jsにURLと公開anon keyを設定してください。", "is-warn");
+    return;
+  }
+
+  updateAccountUi("Supabaseに接続しています", "");
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    updateAccountUi(`ログイン状態を確認できません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  authState.session = data.session;
+  authState.user = data.session?.user || null;
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    authState.session = session;
+    authState.user = session?.user || null;
+    syncAccountSettings();
+  });
+  await syncAccountSettings();
+}
+
+async function createAccount(event) {
+  event.preventDefault();
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定のため、アカウントを作成できません。", "is-bad");
+    return;
+  }
+
+  const email = elements.signUpEmail.value.trim();
+  const password = elements.signUpPassword.value;
+  const dogName = elements.signUpDogName.value.trim() || defaultSettings.dogName;
+  updateAccountUi("アカウントを作成しています", "");
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { dog_name: dogName },
+    },
+  });
+
+  if (error) {
+    updateAccountUi(`アカウントを作成できません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  settings.dogName = dogName;
+  saveLocalSettings();
+  applySettingsToForm();
+
+  if (data.session) {
+    authState.session = data.session;
+    authState.user = data.user;
+    await saveDogProfile(dogName, true);
+    updateAccountUi("アカウントを作成してログインしました", "is-ok");
+  } else {
+    updateAccountUi("確認メールを送信しました。メール確認後にログインしてください。", "is-ok");
+  }
+}
+
+async function loginAccount(event) {
+  event.preventDefault();
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定のため、ログインできません。", "is-bad");
+    return;
+  }
+
+  updateAccountUi("ログインしています", "");
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: elements.loginEmail.value.trim(),
+    password: elements.loginPassword.value,
+  });
+
+  if (error) {
+    updateAccountUi(`ログインできません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  authState.session = data.session;
+  authState.user = data.user;
+  await syncAccountSettings();
+}
+
+async function logoutAccount() {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    updateAccountUi(`ログアウトできません: ${error.message}`, "is-bad");
+    return;
+  }
+  authState.session = null;
+  authState.user = null;
+  updateAccountUi("ログアウトしました。犬の名前はこの端末の一時設定を使います。", "is-warn");
+}
+
+async function syncAccountSettings() {
+  if (!supabaseClient || !authState.user) {
+    updateAccountUi("未ログインです。ログインすると犬の名前をアカウントごとに保存できます。", supabaseClient ? "is-warn" : "is-bad");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("dog_profiles")
+    .select("dog_name")
+    .eq("user_id", authState.user.id)
+    .maybeSingle();
+
+  if (error) {
+    updateAccountUi(`犬の名前を読み込めません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  if (data?.dog_name) {
+    settings.dogName = data.dog_name;
+  } else {
+    await saveDogProfile(settings.dogName || defaultSettings.dogName, true);
+  }
+
+  saveLocalSettings();
+  applySettingsToForm();
+  updateAccountUi("ログイン中です。犬の名前はSupabaseに保存されます。", "is-ok");
+}
+
+async function saveDogProfile(dogName, silent = false) {
+  if (!supabaseClient || !authState.user) return false;
+  const { error } = await supabaseClient.from("dog_profiles").upsert(
+    {
+      user_id: authState.user.id,
+      dog_name: dogName,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) {
+    if (!silent) updateAccountUi(`犬の名前を保存できません: ${error.message}`, "is-bad");
+    return false;
+  }
+  if (!silent) updateAccountUi("犬の名前をSupabaseに保存しました。", "is-ok");
+  return true;
+}
+
+function updateAccountUi(message, statusClass = "") {
+  elements.accountStatus.textContent = message;
+  elements.accountStatus.classList.remove("is-ok", "is-warn", "is-bad");
+  if (statusClass) elements.accountStatus.classList.add(statusClass);
+
+  const configured = Boolean(supabaseClient);
+  const loggedIn = Boolean(authState.user);
+  elements.signUpForm.querySelectorAll("input, button").forEach((node) => {
+    node.disabled = !configured;
+  });
+  elements.loginForm.querySelectorAll("input, button").forEach((node) => {
+    node.disabled = !configured;
+  });
+  elements.logoutButton.disabled = !loggedIn;
+  elements.currentAccountText.textContent = loggedIn ? `ログイン中: ${authState.user.email}` : "未ログイン";
+  elements.currentDogNameText.textContent = `犬の名前: ${settings.dogName || defaultSettings.dogName}`;
+}
+
 function applySettingsToForm() {
   elements.settingDogName.value = settings.dogName;
-  elements.settingPassword.value = settings.password;
+  elements.currentDogNameText.textContent = `犬の名前: ${settings.dogName || defaultSettings.dogName}`;
 }
 
-function saveSettingsFromForm(event) {
+async function saveSettingsFromForm(event) {
   event.preventDefault();
   settings.dogName = elements.settingDogName.value.trim() || defaultSettings.dogName;
-  settings.password = elements.settingPassword.value;
-  localStorage.setItem("watch-system-settings", JSON.stringify(settings));
-  elements.runStatusText.textContent = "設定を保存しました";
+  saveLocalSettings();
+  if (authState.user) {
+    const saved = await saveDogProfile(settings.dogName);
+    elements.runStatusText.textContent = saved ? "犬の名前を保存しました" : "犬の名前を端末に一時保存しました";
+  } else {
+    updateAccountUi("未ログインのため、犬の名前はこの端末に一時保存しました。", "is-warn");
+    elements.runStatusText.textContent = "犬の名前を端末に一時保存しました";
+  }
+  applySettingsToForm();
 }
 
-function resetSettings() {
+async function resetSettings() {
   Object.assign(settings, defaultSettings);
-  localStorage.removeItem("watch-system-settings");
+  saveLocalSettings();
+  if (authState.user) await saveDogProfile(settings.dogName, true);
   applySettingsToForm();
   elements.runStatusText.textContent = "設定を初期化しました";
+}
+
+function saveLocalSettings() {
+  localStorage.setItem("watch-system-settings", JSON.stringify({ dogName: settings.dogName }));
 }
 
 function loadSettings() {
@@ -175,7 +382,6 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem("watch-system-settings")) || {};
     return {
       dogName: saved.dogName || defaultSettings.dogName,
-      password: saved.password || defaultSettings.password,
     };
   } catch {
     return { ...defaultSettings };

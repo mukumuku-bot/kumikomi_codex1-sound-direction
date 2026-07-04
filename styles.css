@@ -283,19 +283,28 @@ h2 {
 }
 
 .settings-grid,
+.account-grid,
 .check-grid,
 .feature-grid {
   display: grid;
   gap: 18px;
 }
 
-.settings-grid {
+.settings-grid,
+.account-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   max-width: 880px;
 }
 
+.account-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1120px;
+  align-items: start;
+}
+
 .field,
 .toggle-row,
+.account-card,
 .feature-card,
 .check-card,
 .run-panel {
@@ -311,6 +320,57 @@ h2 {
   padding: 22px;
   position: relative;
   overflow: hidden;
+}
+
+.account-card {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+}
+
+.account-card h2 {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: clamp(1.05rem, 2vw, 1.32rem);
+}
+
+.account-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.account-status {
+  max-width: 1120px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--accent);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+  font-weight: 800;
+}
+
+.account-status.is-ok {
+  border-left-color: var(--ok);
+  color: #176b45;
+}
+
+.account-status.is-warn {
+  border-left-color: var(--warn);
+  color: #8a5b00;
+}
+
+.account-status.is-bad {
+  border-left-color: var(--danger);
+  color: #9d1022;
+}
+
+.compact-field {
+  padding: 16px;
+  box-shadow: none;
 }
 
 .field::before,
@@ -333,6 +393,7 @@ h2 {
 }
 
 select,
+input[type="email"],
 input[type="text"],
 input[type="password"],
 .transcript-box {
@@ -349,6 +410,7 @@ select {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"] {
   min-height: 46px;
   padding: 0 12px;
@@ -356,6 +418,7 @@ input[type="password"] {
 }
 
 input[type="text"]:focus,
+input[type="email"]:focus,
 input[type="password"]:focus,
 select:focus,
 .transcript-box:focus {
@@ -1102,6 +1165,7 @@ body.is-running-page .dog-eyes,
   }
 
   .settings-grid,
+  .account-grid,
   .feature-grid,
   .check-grid,
   .diagnostic-grid,
@@ -1136,6 +1200,7 @@ body.is-running-page .dog-eyes,
   }
 
   .settings-grid,
+  .account-grid,
   .feature-grid,
   .check-grid,
   .diagnostic-grid,
