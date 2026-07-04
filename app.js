@@ -98,6 +98,10 @@ function showRouteFromHash() {
   });
 
   document.body.classList.toggle("is-running-page", currentRoute === "running");
+
+  if (currentRoute !== "running" && currentRoute !== "check") {
+    stopHiddenTranscription();
+  }
 }
 
 function applySettingsToForm() {
@@ -177,7 +181,8 @@ async function checkMic() {
 
 function checkSpeech() {
   if (speechState.supported) {
-    setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "音声認識に対応しています");
+    setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "名前を呼ぶ確認を開始しました");
+    startHiddenTranscription();
   } else {
     setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "このブラウザは音声認識に未対応です");
   }
@@ -400,7 +405,7 @@ function setupTranscription() {
     elements.transcriptionStatus.textContent = elements.transcriptText.value.trim() ? "停止中" : "待機中";
     elements.transcribeButton.textContent = "文字起こし開始";
     renderTranscript();
-    if (speechState.shouldListen && runState.running) {
+    if (speechState.shouldListen) {
       window.setTimeout(startHiddenTranscription, 450);
     }
   });
@@ -409,6 +414,9 @@ function setupTranscription() {
     speechState.listening = false;
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       speechState.shouldListen = false;
+      setCheck(elements.speechDot, elements.speechCheckText, "is-bad", "マイクまたは音声認識が許可されていません");
+    } else {
+      setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "音声認識を開始できませんでした");
     }
     elements.transcriptionStatus.textContent = event.error === "not-allowed" ? "権限なし" : "エラー";
     elements.transcribeButton.textContent = "文字起こし開始";
@@ -437,6 +445,7 @@ function startHiddenTranscription() {
   speechState.shouldListen = true;
   speechState.recognition.lang = "ja-JP";
   ensureBarkAudio();
+  setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "聞き取り中です。名前を呼ぶと鳴きます");
 
   try {
     speechState.recognition.start();
