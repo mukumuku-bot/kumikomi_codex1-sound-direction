@@ -55,6 +55,7 @@ const elements = {
 
 const runState = {
   model: null,
+  faceDetector: null,
   stream: null,
   running: false,
   detecting: false,
@@ -62,6 +63,8 @@ const runState = {
   eyeX: 0,
   eyeY: 0,
   sleeping: false,
+  trackedCenter: null,
+  coveredFrames: 0,
 };
 
 const speechState = {
@@ -84,6 +87,7 @@ const speechState = {
 const ctx = elements.overlay.getContext("2d");
 const EYE_RANGE_X = 30;
 const EYE_RANGE_Y = 20;
+const FACE_COVER_SWITCH_FRAMES = 8;
 
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
@@ -292,6 +296,7 @@ async function startRun() {
     elements.stopRunButton.disabled = false;
     elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
     await loadModel();
+    await loadFaceDetector();
     elements.runStatusText.textContent = "人物を探しています";
     startHiddenTranscription();
     detectLoop();
@@ -313,6 +318,8 @@ function stopRun() {
   runState.stream = null;
   elements.video.srcObject = null;
   updateRunningViewMode();
+  runState.trackedCenter = null;
+  runState.coveredFrames = 0;
   elements.startRunButton.disabled = false;
   elements.stopRunButton.disabled = true;
   elements.personCountText.textContent = "0";
@@ -334,6 +341,17 @@ async function loadModel() {
   runState.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
 }
 
+async function loadFaceDetector() {
+  if (runState.faceDetector) return;
+  if (!window.faceDetection) return;
+
+  const model = window.faceDetection.SupportedModels.MediaPipeFaceDetector;
+  runState.faceDetector = await window.faceDetection.createDetector(model, {
+    runtime: "tfjs",
+    maxFaces: 8,
+  });
+}
+
 function resizeOverlay() {
   const scale = window.devicePixelRatio || 1;
   const width = elements.video.videoWidth || elements.overlay.clientWidth || 1;
@@ -350,7 +368,10 @@ async function detectLoop() {
   try {
     resizeOverlay();
     const predictions = await runState.model.detect(elements.video);
-    renderDetections(predictions);
+    const faces = runState.faceDetector
+      ? await runState.faceDetector.estimateFaces(elements.video, { flipHorizontal: false })
+      : [];
+    renderDetections(predictions, faces);
   } catch {
     elements.runStatusText.textContent = "検出中にエラーが発生しました";
   } finally {
@@ -359,7 +380,7 @@ async function detectLoop() {
   }
 }
 
-function renderDetections(predictions) {
+function renderDetections(predictions, faces = []) {
   const frameWidth = elements.video.videoWidth || elements.overlay.width;
   const frameHeight = elements.video.videoHeight || elements.overlay.height;
   const minScore = 0.45;
@@ -370,6 +391,8 @@ function renderDetections(predictions) {
   elements.personCountText.textContent = String(people.length);
 
   if (!people.length) {
+    runState.trackedCenter = null;
+    runState.coveredFrames = 0;
     sleepEyes();
     updateEyeTracking(0, 0);
     elements.runStatusText.textContent = "人物を探しています";
@@ -379,12 +402,98 @@ function renderDetections(predictions) {
   }
 
   wakeEyes();
-  const mainPerson = people[0];
+  const mainPerson = chooseTrackedPerson(people, faces, frameWidth, frameHeight);
   const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
   elements.runStatusText.textContent = "検出中";
   elements.directionText.textContent = getDirectionLabel(metrics);
   elements.confidenceText.textContent = `${Math.round(mainPerson.score * 100)}%`;
+}
+
+function chooseTrackedPerson(people, faces, frameWidth, frameHeight) {
+  const enrichedPeople = people.map((person) => ({
+    person,
+    center: getBoxCenter(person.bbox),
+    hasFace: personHasVisibleFace(person.bbox, faces),
+  }));
+
+  const current = findCurrentTrackedPerson(enrichedPeople);
+  if (current) {
+    runState.coveredFrames = current.hasFace ? 0 : runState.coveredFrames + 1;
+    if (runState.coveredFrames < FACE_COVER_SWITCH_FRAMES || enrichedPeople.length === 1) {
+      runState.trackedCenter = current.center;
+      return current.person;
+    }
+  }
+
+  const candidates = enrichedPeople.filter((item) => item.hasFace);
+  const next = chooseBestCandidate(candidates.length ? candidates : enrichedPeople, frameWidth, frameHeight);
+  runState.trackedCenter = next.center;
+  runState.coveredFrames = 0;
+  return next.person;
+}
+
+function findCurrentTrackedPerson(enrichedPeople) {
+  if (!runState.trackedCenter) return null;
+
+  return enrichedPeople
+    .map((item) => ({
+      ...item,
+      distance: Math.hypot(item.center.x - runState.trackedCenter.x, item.center.y - runState.trackedCenter.y),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0] || null;
+}
+
+function chooseBestCandidate(candidates, frameWidth, frameHeight) {
+  const frameCenter = { x: frameWidth / 2, y: frameHeight / 2 };
+  return candidates
+    .map((item) => {
+      const centerDistance = Math.hypot(item.center.x - frameCenter.x, item.center.y - frameCenter.y);
+      const normalizedDistance = centerDistance / Math.hypot(frameCenter.x, frameCenter.y);
+      const faceBonus = item.hasFace ? 0.28 : 0;
+      const score = item.person.score + faceBonus - normalizedDistance * 0.18;
+      return { ...item, score };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+}
+
+function personHasVisibleFace([personX, personY, personWidth, personHeight], faces) {
+  const headArea = {
+    x: personX,
+    y: personY,
+    width: personWidth,
+    height: personHeight * 0.45,
+  };
+
+  return faces.some((face) => {
+    const box = face.box || {};
+    const faceBox = {
+      x: box.xMin ?? box.x ?? 0,
+      y: box.yMin ?? box.y ?? 0,
+      width: box.width ?? Math.max(0, (box.xMax ?? 0) - (box.xMin ?? 0)),
+      height: box.height ?? Math.max(0, (box.yMax ?? 0) - (box.yMin ?? 0)),
+    };
+    return getIntersectionRatio(headArea, faceBox) > 0.12;
+  });
+}
+
+function getBoxCenter([x, y, width, height]) {
+  return {
+    x: x + width / 2,
+    y: y + height / 2,
+  };
+}
+
+function getIntersectionRatio(a, b) {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  const width = Math.max(0, right - left);
+  const height = Math.max(0, bottom - top);
+  const intersection = width * height;
+  const bArea = Math.max(1, b.width * b.height);
+  return intersection / bArea;
 }
 
 function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
