@@ -2,10 +2,6 @@ const routes = ["settings", "product", "check", "running"];
 const defaultSettings = {
   dogName: "ポチ",
   password: "",
-  language: "ja-JP",
-  sensitivity: 45,
-  mirror: true,
-  speech: true,
 };
 
 const settings = loadSettings();
@@ -15,11 +11,6 @@ const elements = {
   settingsForm: document.querySelector("#settingsForm"),
   settingDogName: document.querySelector("#settingDogName"),
   settingPassword: document.querySelector("#settingPassword"),
-  settingLanguage: document.querySelector("#settingLanguage"),
-  settingSensitivity: document.querySelector("#settingSensitivity"),
-  settingMirror: document.querySelector("#settingMirror"),
-  settingSpeech: document.querySelector("#settingSpeech"),
-  sensitivityOutput: document.querySelector("#sensitivityOutput"),
   resetSettingsButton: document.querySelector("#resetSettingsButton"),
   browserDot: document.querySelector("#browserDot"),
   cameraDot: document.querySelector("#cameraDot"),
@@ -75,7 +66,6 @@ const EYE_RANGE_Y = 20;
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
 elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
-elements.settingSensitivity.addEventListener("input", updateSensitivityLabel);
 elements.resetSettingsButton.addEventListener("click", resetSettings);
 elements.browserCheckButton.addEventListener("click", checkBrowser);
 elements.cameraCheckButton.addEventListener("click", checkCamera);
@@ -107,29 +97,14 @@ function showRouteFromHash() {
 function applySettingsToForm() {
   elements.settingDogName.value = settings.dogName;
   elements.settingPassword.value = settings.password;
-  elements.settingLanguage.value = settings.language;
-  elements.settingSensitivity.value = String(settings.sensitivity);
-  elements.settingMirror.checked = settings.mirror;
-  elements.settingSpeech.checked = settings.speech;
-  elements.speechPanel.hidden = !settings.speech;
-  updateSensitivityLabel();
 }
 
 function saveSettingsFromForm(event) {
   event.preventDefault();
   settings.dogName = elements.settingDogName.value.trim() || defaultSettings.dogName;
   settings.password = elements.settingPassword.value;
-  settings.language = elements.settingLanguage.value;
-  settings.sensitivity = Number(elements.settingSensitivity.value);
-  settings.mirror = elements.settingMirror.checked;
-  settings.speech = elements.settingSpeech.checked;
   localStorage.setItem("watch-system-settings", JSON.stringify(settings));
-  elements.speechPanel.hidden = !settings.speech;
   elements.runStatusText.textContent = "設定を保存しました";
-
-  if (speechState.recognition) {
-    speechState.recognition.lang = settings.language;
-  }
 }
 
 function resetSettings() {
@@ -139,13 +114,13 @@ function resetSettings() {
   elements.runStatusText.textContent = "設定を初期化しました";
 }
 
-function updateSensitivityLabel() {
-  elements.sensitivityOutput.textContent = `${elements.settingSensitivity.value}%`;
-}
-
 function loadSettings() {
   try {
-    return { ...defaultSettings, ...JSON.parse(localStorage.getItem("watch-system-settings")) };
+    const saved = JSON.parse(localStorage.getItem("watch-system-settings")) || {};
+    return {
+      dogName: saved.dogName || defaultSettings.dogName,
+      password: saved.password || defaultSettings.password,
+    };
   } catch {
     return { ...defaultSettings };
   }
@@ -291,7 +266,7 @@ async function detectLoop() {
 function renderDetections(predictions) {
   const frameWidth = elements.video.videoWidth || elements.overlay.width;
   const frameHeight = elements.video.videoHeight || elements.overlay.height;
-  const minScore = settings.sensitivity / 100;
+  const minScore = 0.45;
   const people = predictions
     .filter((item) => item.class === "person" && item.score >= minScore)
     .sort((a, b) => b.score - a.score);
@@ -320,7 +295,7 @@ function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
   const personCenterX = x + width / 2;
   const personCenterY = y + height / 2;
   const rawX = ((personCenterX - sourceWidth / 2) / (sourceWidth / 2)) * 100;
-  const normalizedX = settings.mirror ? -rawX : rawX;
+  const normalizedX = -rawX;
   const normalizedY = ((personCenterY - sourceHeight / 2) / (sourceHeight / 2)) * 100;
   const total = Math.hypot(normalizedX, normalizedY);
 
@@ -385,7 +360,7 @@ function setupTranscription() {
   const recognition = new Recognition();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = settings.language;
+  recognition.lang = "ja-JP";
 
   recognition.addEventListener("start", () => {
     speechState.listening = true;
@@ -431,7 +406,7 @@ function toggleTranscription() {
     return;
   }
 
-  speechState.recognition.lang = settings.language;
+  speechState.recognition.lang = "ja-JP";
   try {
     speechState.recognition.start();
   } catch {

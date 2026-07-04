@@ -38,30 +38,6 @@
             <input id="settingPassword" type="password" autocomplete="new-password" placeholder="パスワードを入力" />
           </label>
 
-          <label class="field">
-            <span>音声認識の言語</span>
-            <select id="settingLanguage">
-              <option value="ja-JP">日本語</option>
-              <option value="en-US">English</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>人物検出の感度</span>
-            <input id="settingSensitivity" type="range" min="35" max="75" step="5" />
-            <output id="sensitivityOutput" for="settingSensitivity"></output>
-          </label>
-
-          <label class="toggle-row">
-            <input id="settingMirror" type="checkbox" />
-            <span>前面カメラ用に左右反転する</span>
-          </label>
-
-          <label class="toggle-row">
-            <input id="settingSpeech" type="checkbox" />
-            <span>動作中表示で文字起こしを使う</span>
-          </label>
-
           <div class="form-actions">
             <button class="primary-button" type="submit">保存</button>
             <button id="resetSettingsButton" class="secondary-button" type="button">初期化</button>
