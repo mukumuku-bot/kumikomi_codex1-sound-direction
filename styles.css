@@ -188,8 +188,17 @@ a {
 }
 
 body.is-running-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
   padding-bottom: 0;
   overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(137, 216, 255, 0.16), transparent 36%),
+    linear-gradient(160deg, #243850 0%, #132033 52%, #08101d 100%);
 }
 
 body.is-running-page::before {
@@ -203,6 +212,12 @@ body.is-running-page .page-dock {
 
 body.is-running-page .page-shell {
   width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
   padding: 0;
 }
 
@@ -812,7 +827,12 @@ button:disabled {
 
 body.is-running-page .person-run-screen,
 .person-run-screen.is-live {
+  min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
 }
 
 .run-start-panel {
@@ -860,7 +880,12 @@ body.is-running-page .run-start-panel,
 body.is-running-page .run-stage,
 .person-run-screen.is-live .run-stage {
   display: grid;
+  min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
   border: 0;
   border-radius: 0;
   cursor: pointer;
@@ -1087,6 +1112,18 @@ body.is-running-page .dog-eyes,
 
   .run-stage {
     min-height: calc(100svh - 184px);
+  }
+
+  body.is-running-page .page-shell,
+  body.is-running-page .person-run-screen,
+  body.is-running-page .run-stage,
+  .person-run-screen.is-live .run-stage {
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
   }
 
   .dog-eyes {
