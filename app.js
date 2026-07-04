@@ -1,223 +1,407 @@
 const startButton = document.querySelector("#startButton");
-const mirrorToggle = document.querySelector("#mirrorToggle");
-const video = document.querySelector("#video");
-const overlay = document.querySelector("#overlay");
-const dogEyes = document.querySelector("#dogEyes");
-const pupilGroup = document.querySelector("#pupilGroup");
-const loadingState = document.querySelector("#loadingState");
-const offsetText = document.querySelector("#offsetText");
-const directionText = document.querySelector("#directionText");
-const xOffsetText = document.querySelector("#xOffsetText");
-const yOffsetText = document.querySelector("#yOffsetText");
-const xDirectionText = document.querySelector("#xDirectionText");
-const yDirectionText = document.querySelector("#yDirectionText");
-const personCountText = document.querySelector("#personCountText");
+const resetButton = document.querySelector("#resetButton");
+const holdToggle = document.querySelector("#holdToggle");
+const bearingText = document.querySelector("#bearingText");
 const confidenceText = document.querySelector("#confidenceText");
-const ctx = overlay.getContext("2d");
+const levelText = document.querySelector("#levelText");
+const levelBar = document.querySelector("#levelBar");
+const balanceText = document.querySelector("#balanceText");
+const inputState = document.querySelector("#inputState");
+const needle = document.querySelector("#needle");
+const sweep = document.querySelector("#sweep");
+const transcribeButton = document.querySelector("#transcribeButton");
+const languageSelect = document.querySelector("#languageSelect");
+const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
+const downloadTranscriptButton = document.querySelector("#downloadTranscriptButton");
+const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
+const transcriptText = document.querySelector("#transcriptText");
+const transcriptionStatus = document.querySelector("#transcriptionStatus");
+const transcriptionHelp = document.querySelector("#transcriptionHelp");
 
 const state = {
-  model: null,
+  audioContext: null,
+  leftAnalyser: null,
+  rightAnalyser: null,
+  leftData: null,
+  rightData: null,
   stream: null,
+  channelCount: null,
   running: false,
-  rafId: null,
-  detecting: false,
-  eyeX: 0,
-  eyeY: 0,
-  sleeping: false,
+  lastEstimate: null,
+  smoothedScore: 0,
+  smoothedConfidence: 0,
+  stableDirection: "center",
+  pendingDirection: null,
+  pendingSince: 0,
 };
 
-const PERSON_SCORE_MIN = 0.45;
-const EYE_RANGE_X = 30;
-const EYE_RANGE_Y = 20;
+const transcriptionState = {
+  recognition: null,
+  supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+  listening: false,
+  finalText: "",
+  interimText: "",
+};
+
+const MIN_ACTIVE_DB = -58;
+const CENTER_THRESHOLD = 0.08;
+const DIRECTION_THRESHOLD = 0.22;
+const MIN_CHANNEL_RATIO = 0.18;
+const MAX_LAG = 24;
+const LAG_WEIGHT = 0.06;
+const SWITCH_HOLD_MS = 650;
 
 startButton.addEventListener("click", start);
-mirrorToggle.addEventListener("change", updateMirrorMode);
-window.addEventListener("resize", resizeOverlay);
-scheduleBlink();
+resetButton.addEventListener("click", resetMeasurements);
+transcribeButton.addEventListener("click", toggleTranscription);
+copyTranscriptButton.addEventListener("click", copyTranscript);
+downloadTranscriptButton.addEventListener("click", downloadTranscript);
+clearTranscriptButton.addEventListener("click", clearTranscript);
+languageSelect.addEventListener("change", () => {
+  if (transcriptionState.recognition) {
+    transcriptionState.recognition.lang = languageSelect.value;
+  }
+});
+
+setupTranscription();
 
 async function start() {
   startButton.disabled = true;
-  loadingState.textContent = "内カメラを起動中";
+  startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定中';
 
   try {
-    await startCamera();
+    await startAudio();
     state.running = true;
-    loadingState.textContent = "人物検知モデルを読み込み中";
-    await loadModel();
-    loadingState.textContent = "人物を探しています";
-    detectLoop();
+    requestAnimationFrame(tick);
   } catch (error) {
     startButton.disabled = false;
-    loadingState.textContent = "開始できませんでした";
-    directionText.textContent = error.message || "カメラの許可を確認してください";
+    startButton.innerHTML = '<span aria-hidden="true">&#9654;</span> 測定開始';
+    bearingText.textContent = "開始失敗";
+    confidenceText.textContent = error.message || "マイクの許可を確認してください";
   }
 }
 
-async function loadModel() {
-  if (state.model) return;
-  if (!window.cocoSsd) {
-    throw new Error("人物検知モデルを読み込めませんでした。通信状態を確認してください。");
-  }
-  state.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
-}
-
-async function startCamera() {
-  stopCamera();
-
-  const constraints = {
-    audio: false,
-    video: {
-      facingMode: "user",
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+async function startAudio() {
+  state.stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      channelCount: { ideal: 2 },
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
     },
-  };
+  });
 
-  state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+  state.audioContext = new AudioContext();
+  const source = state.audioContext.createMediaStreamSource(state.stream);
+  const splitter = state.audioContext.createChannelSplitter(2);
 
-  video.srcObject = state.stream;
-  await video.play();
-  updateMirrorMode();
-  resizeOverlay();
+  state.leftAnalyser = state.audioContext.createAnalyser();
+  state.rightAnalyser = state.audioContext.createAnalyser();
+  state.leftAnalyser.fftSize = 2048;
+  state.rightAnalyser.fftSize = 2048;
+  state.leftData = new Float32Array(state.leftAnalyser.fftSize);
+  state.rightData = new Float32Array(state.rightAnalyser.fftSize);
+
+  source.connect(splitter);
+  splitter.connect(state.leftAnalyser, 0);
+  splitter.connect(state.rightAnalyser, 1);
+
+  const [track] = state.stream.getAudioTracks();
+  const settings = track?.getSettings?.() || {};
+  state.channelCount = settings.channelCount || null;
+  inputState.textContent = state.channelCount >= 2
+    ? `2ch入力を確認 (${state.channelCount}ch)`
+    : "入力チャンネルを確認中";
 }
 
-function stopCamera() {
-  if (state.stream) {
-    state.stream.getTracks().forEach((track) => track.stop());
+function tick(now) {
+  if (!state.running || !state.leftAnalyser || !state.rightAnalyser) return;
+
+  state.leftAnalyser.getFloatTimeDomainData(state.leftData);
+  state.rightAnalyser.getFloatTimeDomainData(state.rightData);
+
+  const leftRms = getRms(state.leftData);
+  const rightRms = getRms(state.rightData);
+  const totalRms = (leftRms + rightRms) / 2;
+  const db = 20 * Math.log10(Math.max(totalRms, 0.00001));
+  const levelPercent = clamp((db + 70) / 45, 0, 1);
+
+  levelText.textContent = `${Math.round(db)} dB`;
+  levelBar.style.width = `${Math.round(levelPercent * 100)}%`;
+
+  if (!holdToggle.checked) {
+    state.lastEstimate = estimateDirection(leftRms, rightRms, db, now);
   }
-  state.stream = null;
+
+  renderEstimate(state.lastEstimate);
+  requestAnimationFrame(tick);
 }
 
-function updateMirrorMode() {
-  video.classList.toggle("mirrored", mirrorToggle.checked);
-  overlay.classList.toggle("mirrored", mirrorToggle.checked);
-}
-
-function resizeOverlay() {
-  const scale = window.devicePixelRatio || 1;
-  const width = video.videoWidth || window.innerWidth;
-  const height = video.videoHeight || window.innerHeight;
-  overlay.width = Math.max(1, Math.round(width * scale));
-  overlay.height = Math.max(1, Math.round(height * scale));
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-}
-
-async function detectLoop() {
-  if (!state.running || state.detecting) return;
-  state.detecting = true;
-
-  try {
-    const predictions = await state.model.detect(video);
-    renderDetections(predictions);
-  } catch (error) {
-    loadingState.textContent = "検知でエラーが発生しました";
-  } finally {
-    state.detecting = false;
-    state.rafId = requestAnimationFrame(detectLoop);
+function estimateDirection(leftRms, rightRms, db, now) {
+  if (db < MIN_ACTIVE_DB) {
+    balanceText.textContent = "--";
+    inputState.textContent = "音が小さすぎます";
+    return { label: "音が小さい", angle: 0, confidence: 0, directional: false };
   }
+
+  const loud = Math.max(leftRms, rightRms);
+  const quiet = Math.min(leftRms, rightRms);
+  const channelRatio = quiet / Math.max(loud, 0.000001);
+
+  // Mono microphones can appear as left = signal, right = silence after splitting.
+  if (channelRatio < MIN_CHANNEL_RATIO) {
+    balanceText.textContent = "単一";
+    inputState.textContent = "単一入力のため左右判定不可";
+    return { label: "方向不明", angle: 0, confidence: 0, directional: false };
+  }
+
+  const balance = (rightRms - leftRms) / Math.max(rightRms + leftRms, 0.000001);
+  const lagScore = estimateLagScore(state.leftData, state.rightData);
+  const score = clamp(balance * (1 - LAG_WEIGHT) + lagScore * LAG_WEIGHT, -1, 1);
+  const rawConfidence = clamp((Math.abs(score) - DIRECTION_THRESHOLD) / 0.35, 0, 1);
+
+  state.smoothedScore = state.smoothedScore * 0.88 + score * 0.12;
+  state.smoothedConfidence = state.smoothedConfidence * 0.75 + rawConfidence * 0.25;
+
+  const shownScore = state.smoothedScore;
+  const direction = stabilizeDirection(shownScore, now);
+  const confidence = direction === "center" ? 0.35 : state.smoothedConfidence;
+  balanceText.textContent = `${shownScore > 0 ? "+" : ""}${shownScore.toFixed(2)}`;
+
+  if (direction === "center") {
+    inputState.textContent = "左右差は小さめ";
+    return { label: "正面付近", angle: 0, confidence: 0.35, directional: true };
+  }
+
+  inputState.textContent = "左右差を検出";
+  return direction === "right"
+    ? { label: "右方向", angle: 90, confidence, directional: true }
+    : { label: "左方向", angle: 270, confidence, directional: true };
 }
 
-function renderDetections(predictions) {
-  resizeOverlay();
-  const frameWidth = video.videoWidth || overlay.width;
-  const frameHeight = video.videoHeight || overlay.height;
-  ctx.clearRect(0, 0, frameWidth, frameHeight);
+function stabilizeDirection(score, now) {
+  let nextDirection = state.stableDirection;
 
-  const people = predictions
-    .filter((item) => item.class === "person" && item.score >= PERSON_SCORE_MIN)
-    .sort((a, b) => b.score - a.score);
+  if (Math.abs(score) <= CENTER_THRESHOLD) {
+    nextDirection = "center";
+  } else if (Math.abs(score) >= DIRECTION_THRESHOLD) {
+    nextDirection = score > 0 ? "right" : "left";
+  }
 
-  personCountText.textContent = String(people.length);
+  if (nextDirection === state.stableDirection) {
+    state.pendingDirection = null;
+    state.pendingSince = 0;
+    return state.stableDirection;
+  }
 
-  if (people.length === 0) {
-    sleepEyes();
-    updateEyeTracking(0, 0);
-    loadingState.textContent = "人物を探しています";
-    offsetText.textContent = "--%";
-    xOffsetText.textContent = "--%";
-    yOffsetText.textContent = "--%";
-    directionText.textContent = "人物が画面に入るとズレを表示します";
-    xDirectionText.textContent = "--";
-    yDirectionText.textContent = "--";
-    confidenceText.textContent = "信頼度 --";
+  if (state.pendingDirection !== nextDirection) {
+    state.pendingDirection = nextDirection;
+    state.pendingSince = now;
+    return state.stableDirection;
+  }
+
+  if (now - state.pendingSince >= SWITCH_HOLD_MS) {
+    state.stableDirection = nextDirection;
+    state.pendingDirection = null;
+    state.pendingSince = 0;
+  }
+
+  return state.stableDirection;
+}
+
+function estimateLagScore(left, right) {
+  let bestLag = 0;
+  let bestCorrelation = -Infinity;
+
+  for (let lag = -MAX_LAG; lag <= MAX_LAG; lag += 1) {
+    let sum = 0;
+    let leftEnergy = 0;
+    let rightEnergy = 0;
+
+    for (let i = MAX_LAG; i < left.length - MAX_LAG; i += 1) {
+      const leftValue = left[i];
+      const rightValue = right[i + lag];
+      sum += leftValue * rightValue;
+      leftEnergy += leftValue * leftValue;
+      rightEnergy += rightValue * rightValue;
+    }
+
+    const correlation = sum / Math.sqrt(Math.max(leftEnergy * rightEnergy, 0.000001));
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestLag = lag;
+    }
+  }
+
+  // Positive lag means the right channel lines up later, so the sound likely came from the left.
+  return clamp(-bestLag / MAX_LAG, -1, 1);
+}
+
+function renderEstimate(estimate) {
+  if (!estimate) {
+    bearingText.textContent = "--";
+    confidenceText.textContent = "マイク入力待機中";
+    needle.style.opacity = "0.3";
+    sweep.style.opacity = "0.16";
     return;
   }
 
-  loadingState.textContent = "";
-  wakeEyes();
-  const mainPerson = people[0];
-  const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
-  updateEyeTracking(metrics.x, metrics.y);
+  const confidencePercent = Math.round(estimate.confidence * 100);
 
-  offsetText.textContent = `${metrics.total}%`;
-  xOffsetText.textContent = `${Math.abs(metrics.x)}%`;
-  yOffsetText.textContent = `${Math.abs(metrics.y)}%`;
-  xDirectionText.textContent = metrics.x === 0 ? "中央" : metrics.x > 0 ? "右にズレ" : "左にズレ";
-  yDirectionText.textContent = metrics.y === 0 ? "中央" : metrics.y > 0 ? "下にズレ" : "上にズレ";
-  directionText.textContent = getDirectionLabel(metrics);
-  confidenceText.textContent = `信頼度 ${Math.round(mainPerson.score * 100)}%`;
+  bearingText.textContent = estimate.label;
+  confidenceText.textContent = estimate.directional
+    ? `信頼度 ${confidencePercent}%`
+    : "この端末では静止したままの方向推定ができません";
+  needle.style.transform = `rotate(${estimate.angle}deg)`;
+  sweep.style.transform = `rotate(${estimate.angle}deg)`;
+  needle.style.opacity = String(0.28 + estimate.confidence * 0.72);
+  sweep.style.opacity = String(0.14 + estimate.confidence * 0.54);
 }
 
-function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
-  const personCenterX = x + width / 2;
-  const personCenterY = y + height / 2;
-  const rawX = ((personCenterX - sourceWidth / 2) / (sourceWidth / 2)) * 100;
-  const normalizedX = mirrorToggle.checked ? -rawX : rawX;
-  const normalizedY = ((personCenterY - sourceHeight / 2) / (sourceHeight / 2)) * 100;
-  const total = Math.hypot(normalizedX, normalizedY);
+function resetMeasurements() {
+  state.lastEstimate = null;
+  state.smoothedScore = 0;
+  state.smoothedConfidence = 0;
+  state.stableDirection = "center";
+  state.pendingDirection = null;
+  state.pendingSince = 0;
+  balanceText.textContent = "--";
+  inputState.textContent = "マイク待機中";
+  renderEstimate(null);
+}
 
-  return {
-    x: Math.round(clamp(normalizedX, -100, 100)),
-    y: Math.round(clamp(normalizedY, -100, 100)),
-    total: Math.round(clamp(total, 0, 100)),
+function setupTranscription() {
+  if (!transcriptionState.supported) {
+    transcribeButton.disabled = true;
+    transcriptionStatus.textContent = "非対応";
+    transcriptionHelp.textContent = "このブラウザは音声認識に対応していません。AndroidのChromeなどで開いてください。";
+    return;
+  }
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new Recognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = languageSelect.value;
+
+  recognition.addEventListener("start", () => {
+    transcriptionState.listening = true;
+    transcriptionStatus.textContent = "聞き取り中";
+    transcribeButton.innerHTML = '<span aria-hidden="true">&#9632;</span> 停止';
+  });
+
+  recognition.addEventListener("result", (event) => {
+    let interim = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const piece = event.results[i][0]?.transcript || "";
+      if (event.results[i].isFinal) {
+        transcriptionState.finalText += `${piece.trim()}\n`;
+      } else {
+        interim += piece;
+      }
+    }
+
+    transcriptionState.interimText = interim.trim();
+    renderTranscript();
+  });
+
+  recognition.addEventListener("end", () => {
+    transcriptionState.listening = false;
+    transcriptionState.interimText = "";
+    transcriptionStatus.textContent = transcriptText.value.trim() ? "停止中" : "待機中";
+    transcribeButton.innerHTML = '<span aria-hidden="true">&#9679;</span> 文字起こし開始';
+    renderTranscript();
+  });
+
+  recognition.addEventListener("error", (event) => {
+    transcriptionState.listening = false;
+    transcriptionStatus.textContent = "エラー";
+    transcriptionHelp.textContent = getRecognitionErrorMessage(event.error);
+  });
+
+  transcriptionState.recognition = recognition;
+}
+
+function toggleTranscription() {
+  if (!transcriptionState.recognition) return;
+
+  if (transcriptionState.listening) {
+    transcriptionState.recognition.stop();
+    return;
+  }
+
+  transcriptionHelp.textContent = "話した内容が下に表示されます。必要に応じてコピーまたは保存できます。";
+  transcriptionState.recognition.lang = languageSelect.value;
+
+  try {
+    transcriptionState.recognition.start();
+  } catch (error) {
+    transcriptionStatus.textContent = "起動待ち";
+  }
+}
+
+function renderTranscript() {
+  const divider = transcriptionState.finalText && transcriptionState.interimText ? "\n" : "";
+  transcriptText.value = `${transcriptionState.finalText}${divider}${transcriptionState.interimText}`.trimStart();
+  transcriptText.scrollTop = transcriptText.scrollHeight;
+}
+
+async function copyTranscript() {
+  const text = transcriptText.value.trim();
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    transcriptionStatus.textContent = "コピー済み";
+  } catch (error) {
+    transcriptText.select();
+    document.execCommand("copy");
+    transcriptionStatus.textContent = "コピー済み";
+  }
+}
+
+function downloadTranscript() {
+  const text = transcriptText.value.trim();
+  if (!text) return;
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const blob = new Blob([`${text}\n`], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `transcript-${timestamp}.txt`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  transcriptionStatus.textContent = "保存しました";
+}
+
+function clearTranscript() {
+  transcriptionState.finalText = "";
+  transcriptionState.interimText = "";
+  transcriptText.value = "";
+  transcriptionStatus.textContent = transcriptionState.listening ? "聞き取り中" : "待機中";
+}
+
+function getRecognitionErrorMessage(errorCode) {
+  const messages = {
+    "audio-capture": "マイクが見つかりません。端末のマイク設定を確認してください。",
+    "not-allowed": "マイクの使用が許可されていません。ブラウザの権限設定を確認してください。",
+    network: "音声認識サービスに接続できません。通信状態を確認してください。",
+    "no-speech": "音声を検出できませんでした。もう一度話してください。",
   };
+
+  return messages[errorCode] || "文字起こしを開始できませんでした。ブラウザや権限設定を確認してください。";
 }
 
-function getDirectionLabel(metrics) {
-  if (metrics.total <= 5) return "ほぼ中央です";
-
-  const horizontal = Math.abs(metrics.x) <= 5 ? "" : metrics.x > 0 ? "右" : "左";
-  const vertical = Math.abs(metrics.y) <= 5 ? "" : metrics.y > 0 ? "下" : "上";
-  return `${vertical}${horizontal}へ${metrics.total}%ズレています`;
-}
-
-function updateEyeTracking(xPercent, yPercent) {
-  const targetX = clamp(xPercent / 100, -1, 1) * EYE_RANGE_X;
-  const targetY = clamp(yPercent / 100, -1, 1) * EYE_RANGE_Y;
-  state.eyeX = state.eyeX * 0.72 + targetX * 0.28;
-  state.eyeY = state.eyeY * 0.72 + targetY * 0.28;
-
-  dogEyes.style.setProperty("--look-x", `${state.eyeX.toFixed(1)}px`);
-  dogEyes.style.setProperty("--look-y", `${state.eyeY.toFixed(1)}px`);
-  pupilGroup.setAttribute("transform", `translate(${state.eyeX.toFixed(1)} ${state.eyeY.toFixed(1)})`);
-}
-
-function scheduleBlink() {
-  const delay = 1800 + Math.random() * 3200;
-  setTimeout(() => {
-    blinkEyes();
-    scheduleBlink();
-  }, delay);
-}
-
-function blinkEyes() {
-  if (state.sleeping) return;
-  dogEyes.classList.add("is-blinking");
-  setTimeout(() => dogEyes.classList.remove("is-blinking"), 130);
-}
-
-function sleepEyes() {
-  if (state.sleeping) return;
-  state.sleeping = true;
-  dogEyes.classList.remove("is-blinking");
-  dogEyes.classList.add("is-sleeping");
-}
-
-function wakeEyes() {
-  if (!state.sleeping) return;
-  state.sleeping = false;
-  dogEyes.classList.remove("is-sleeping");
-  blinkEyes();
+function getRms(buffer) {
+  let sum = 0;
+  for (const value of buffer) {
+    sum += value * value;
+  }
+  return Math.sqrt(sum / buffer.length);
 }
 
 function clamp(value, min, max) {

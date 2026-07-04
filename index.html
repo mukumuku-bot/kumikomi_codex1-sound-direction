@@ -4,56 +4,115 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
-    <title>人物中心ズレ検知</title>
+    <title>音源方向推定と文字起こし</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="eye-stage" aria-label="追従する目">
-        <svg
-          id="dogEyes"
-          class="dog-eyes"
-          viewBox="0 0 320 170"
-          role="img"
-          aria-label="人を追いかけるロボットの目"
-        >
-          <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-          <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-          <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-          <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-          <g id="pupilGroup">
-            <circle cx="100" cy="91" r="18" fill="#071319" />
-            <circle cx="220" cy="91" r="18" fill="#071319" />
-            <circle cx="93" cy="82" r="5" fill="#ffffff" />
-            <circle cx="213" cy="82" r="5" fill="#ffffff" />
-          </g>
-          <g class="blink-lids">
-            <rect class="lid top-lid left-lid" x="52" y="58" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid top-lid right-lid" x="172" y="58" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid bottom-lid left-lid" x="52" y="99" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid bottom-lid right-lid" x="172" y="99" width="96" height="23" rx="12" fill="#182536" />
-          </g>
-        </svg>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Smartphone Audio Tools</p>
+          <h1>音源方向推定</h1>
+        </div>
+        <button id="startButton" class="primary-button" type="button">
+          <span aria-hidden="true">&#9654;</span>
+          測定開始
+        </button>
       </section>
 
-      <button id="startButton" class="camera-start" type="button" aria-label="カメラ開始"></button>
-      <video id="video" class="hidden-camera" playsinline muted autoplay></video>
-      <canvas id="overlay" class="hidden-camera"></canvas>
-      <div id="loadingState" class="visually-hidden">カメラ待機中</div>
-      <div id="offsetText" class="visually-hidden">--%</div>
-      <div id="directionText" class="visually-hidden">人物を検知すると表示します</div>
-      <div id="xOffsetText" class="visually-hidden">--%</div>
-      <div id="yOffsetText" class="visually-hidden">--%</div>
-      <div id="xDirectionText" class="visually-hidden">--</div>
-      <div id="yDirectionText" class="visually-hidden">--</div>
-      <div id="personCountText" class="visually-hidden">0</div>
-      <div id="confidenceText" class="visually-hidden">信頼度 --</div>
-      <input id="mirrorToggle" type="checkbox" checked hidden />
+      <section class="status-grid" aria-label="測定状態">
+        <div class="status-tile">
+          <span class="label">推定方向</span>
+          <strong id="bearingText">--</strong>
+          <small id="confidenceText">信頼度 --</small>
+        </div>
+        <div class="status-tile">
+          <span class="label">音量</span>
+          <strong id="levelText">-- dB</strong>
+          <div class="meter" aria-hidden="true"><span id="levelBar"></span></div>
+        </div>
+        <div class="status-tile">
+          <span class="label">左右差</span>
+          <strong id="balanceText">--</strong>
+          <small id="inputState">マイク待機中</small>
+        </div>
+      </section>
+
+      <section class="compass-panel" aria-label="方向表示">
+        <div class="compass" id="compass">
+          <div class="ring"></div>
+          <span class="mark north">前</span>
+          <span class="mark east">右</span>
+          <span class="mark south">後</span>
+          <span class="mark west">左</span>
+          <div class="sweep" id="sweep"></div>
+          <div class="needle" id="needle"></div>
+          <div class="phone" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="測定操作">
+        <button id="resetButton" class="secondary-button" type="button">リセット</button>
+        <label class="toggle">
+          <input id="holdToggle" type="checkbox" />
+          <span>推定を保持</span>
+        </label>
+      </section>
+
+      <section class="transcription-panel" aria-label="文字起こし">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Speech To Text</p>
+            <h2>スマホで文字起こし</h2>
+          </div>
+          <span id="transcriptionStatus" class="status-pill">待機中</span>
+        </div>
+
+        <div class="transcription-controls">
+          <button id="transcribeButton" class="primary-button" type="button">
+            <span aria-hidden="true">&#9679;</span>
+            文字起こし開始
+          </button>
+          <select id="languageSelect" aria-label="文字起こし言語">
+            <option value="ja-JP">日本語</option>
+            <option value="en-US">English</option>
+          </select>
+          <button id="copyTranscriptButton" class="secondary-button icon-button" type="button" title="コピー" aria-label="文字起こし結果をコピー">
+            &#128203;
+          </button>
+          <button id="downloadTranscriptButton" class="secondary-button icon-button" type="button" title="保存" aria-label="文字起こし結果を保存">
+            &#128190;
+          </button>
+          <button id="clearTranscriptButton" class="secondary-button icon-button" type="button" title="消去" aria-label="文字起こし結果を消去">
+            &#10005;
+          </button>
+        </div>
+
+        <textarea
+          id="transcriptText"
+          class="transcript-box"
+          readonly
+          placeholder="ここに文字起こし結果が表示されます"
+        ></textarea>
+        <p id="transcriptionHelp" class="help-text">
+          Chromeなど音声認識に対応したブラウザで利用できます。スマホではマイクの使用を許可してください。
+        </p>
+      </section>
+
+      <section class="notes" aria-label="使い方">
+        <h2>使い方</h2>
+        <ol>
+          <li>スマホでこのページを開き、必要な機能の開始ボタンを押します。</li>
+          <li>音源方向推定では、スマホを動かさずに音源へ画面を向けます。</li>
+          <li>文字起こしでは、話し終えたら停止し、必要に応じてコピーまたは保存します。</li>
+        </ol>
+        <p>
+          マイク機能はブラウザの仕様により、localhostまたはHTTPSのページで安定して動作します。
+        </p>
+      </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="./app.js" type="module"></script>
   </body>
 </html>

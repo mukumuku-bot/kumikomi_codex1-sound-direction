@@ -1,9 +1,9 @@
 {
-  "name": "人物中心ズレ検知",
-  "short_name": "人物検知",
+  "name": "音源方向推定と文字起こし",
+  "short_name": "音声ツール",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#132033",
-  "theme_color": "#132033",
+  "background_color": "#0b1020",
+  "theme_color": "#0f172a",
   "icons": []
 }
