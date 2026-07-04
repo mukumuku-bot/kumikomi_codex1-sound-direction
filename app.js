@@ -92,6 +92,8 @@ function showRouteFromHash() {
   elements.tabs.forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.route === currentRoute);
   });
+
+  document.body.classList.toggle("is-running-page", currentRoute === "running");
 }
 
 function applySettingsToForm() {
