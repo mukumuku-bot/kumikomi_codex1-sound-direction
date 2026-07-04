@@ -373,6 +373,14 @@ h2 {
   box-shadow: none;
 }
 
+.save-message {
+  grid-column: 1 / -1;
+  min-height: 1.6em;
+  margin: -4px 0 0;
+  color: #176b45;
+  font-weight: 800;
+}
+
 .field::before,
 .toggle-row::before,
 .voice-readout::before,

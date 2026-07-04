@@ -21,7 +21,7 @@ const elements = {
   currentDogNameText: document.querySelector("#currentDogNameText"),
   settingsForm: document.querySelector("#settingsForm"),
   settingDogName: document.querySelector("#settingDogName"),
-  resetSettingsButton: document.querySelector("#resetSettingsButton"),
+  settingsSaveMessage: document.querySelector("#settingsSaveMessage"),
   browserDot: document.querySelector("#browserDot"),
   cameraDot: document.querySelector("#cameraDot"),
   modelDot: document.querySelector("#modelDot"),
@@ -115,7 +115,6 @@ elements.loginForm.addEventListener("submit", loginAccount);
 elements.resendConfirmationButton.addEventListener("click", resendConfirmationEmail);
 elements.logoutButton.addEventListener("click", logoutAccount);
 elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
-elements.resetSettingsButton.addEventListener("click", resetSettings);
 elements.browserCheckButton.addEventListener("click", checkBrowser);
 elements.cameraCheckButton.addEventListener("click", checkCamera);
 elements.modelCheckButton.addEventListener("click", checkModel);
@@ -393,19 +392,13 @@ async function saveSettingsFromForm(event) {
   if (authState.user) {
     const saved = await saveDogProfile(settings.dogName);
     elements.runStatusText.textContent = saved ? "犬の名前を保存しました" : "犬の名前を端末に一時保存しました";
+    elements.settingsSaveMessage.textContent = saved ? "保存できました" : "端末に一時保存しました";
   } else {
     updateAccountUi("未ログインのため、犬の名前はこの端末に一時保存しました。", "is-warn");
     elements.runStatusText.textContent = "犬の名前を端末に一時保存しました";
+    elements.settingsSaveMessage.textContent = "保存できました";
   }
   applySettingsToForm();
-}
-
-async function resetSettings() {
-  Object.assign(settings, defaultSettings);
-  saveLocalSettings();
-  if (authState.user) await saveDogProfile(settings.dogName, true);
-  applySettingsToForm();
-  elements.runStatusText.textContent = "設定を初期化しました";
 }
 
 function saveLocalSettings() {
