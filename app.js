@@ -37,6 +37,7 @@ const elements = {
   barkTriggerButtons: document.querySelectorAll("[data-bark-trigger]"),
   startRunButton: document.querySelector("#startRunButton"),
   stopRunButton: document.querySelector("#stopRunButton"),
+  runScreen: document.querySelector(".person-run-screen"),
   dogEyes: document.querySelector("#dogEyes"),
   pupilGroup: document.querySelector("#pupilGroup"),
   runStage: document.querySelector(".run-stage"),
@@ -98,7 +99,8 @@ elements.barkCheckButton.addEventListener("click", checkBark);
 elements.barkTriggerButtons.forEach((button) => button.addEventListener("click", checkBark));
 elements.startRunButton.addEventListener("click", startRun);
 elements.stopRunButton.addEventListener("click", stopRun);
-elements.runStage.addEventListener("click", () => {
+elements.runScreen.addEventListener("click", (event) => {
+  if (!event.target.closest(".run-stage")) return;
   if (runState.running) stopRun();
 });
 elements.transcribeButton.addEventListener("click", toggleTranscription);
@@ -138,7 +140,9 @@ function showRouteFromHash() {
 
 function updateRunningViewMode() {
   const route = window.location.hash.replace("#", "") || "product";
-  document.body.classList.toggle("is-running-page", route === "running" && runState.running);
+  const live = route === "running" && runState.running;
+  document.body.classList.toggle("is-running-page", live);
+  elements.runScreen.classList.toggle("is-live", live);
 }
 
 function applySettingsToForm() {
@@ -272,7 +276,9 @@ async function startRun() {
   ensureBarkAudio();
 
   try {
-    stopRun();
+    if (runState.running) stopRun();
+    runState.running = true;
+    updateRunningViewMode();
     elements.startRunButton.disabled = true;
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -282,7 +288,6 @@ async function startRun() {
     runState.stream = stream;
     elements.video.srcObject = stream;
     await elements.video.play();
-    runState.running = true;
     updateRunningViewMode();
     elements.stopRunButton.disabled = false;
     elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
