@@ -85,8 +85,8 @@ const speechState = {
 };
 
 const ctx = elements.overlay.getContext("2d");
-const EYE_RANGE_X = 30;
-const EYE_RANGE_Y = 20;
+const EYE_RANGE_X = 18;
+const EYE_RANGE_Y = 12;
 const FACE_COVER_SWITCH_FRAMES = 8;
 
 window.addEventListener("hashchange", showRouteFromHash);
@@ -283,6 +283,7 @@ async function startRun() {
     if (runState.running) stopRun();
     runState.running = true;
     updateRunningViewMode();
+    resetEyeTracking();
     wakeEyes();
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -550,6 +551,12 @@ function updateEyeTracking(xPercent, yPercent) {
   runState.eyeX = runState.eyeX * 0.72 + targetX * 0.28;
   runState.eyeY = runState.eyeY * 0.72 + targetY * 0.28;
   elements.pupilGroup.setAttribute("transform", `translate(${runState.eyeX.toFixed(1)} ${runState.eyeY.toFixed(1)})`);
+}
+
+function resetEyeTracking() {
+  runState.eyeX = 0;
+  runState.eyeY = 0;
+  elements.pupilGroup.setAttribute("transform", "translate(0 0)");
 }
 
 function scheduleBlink() {

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101828" />
     <title>スマホ犬（Smartphone Dog）</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-7" />
+    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-8" />
   </head>
   <body>
     <header class="topbar">
@@ -297,21 +297,20 @@
                 <ellipse class="eye-rim" cx="275" cy="124" rx="42" ry="48" />
               </g>
 
+              <g class="eye-orbs">
+                <circle class="iris" cx="105" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+                <circle class="iris-line" cx="105" cy="124" r="33" />
+                <circle class="iris" cx="275" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+                <circle class="iris-line" cx="275" cy="124" r="33" />
+              </g>
+
               <g id="pupilGroup">
-                <g class="eye-orb">
-                  <circle class="iris" cx="105" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
-                  <circle class="iris-line" cx="105" cy="124" r="33" />
-                  <circle class="pupil" cx="105" cy="124" r="24" fill="url(#pupilGlow)" />
-                  <circle class="catchlight main" cx="91" cy="103" r="9" />
-                  <circle class="catchlight sub" cx="122" cy="113" r="5" />
-                </g>
-                <g class="eye-orb">
-                  <circle class="iris" cx="275" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
-                  <circle class="iris-line" cx="275" cy="124" r="33" />
-                  <circle class="pupil" cx="275" cy="124" r="24" fill="url(#pupilGlow)" />
-                  <circle class="catchlight main" cx="261" cy="103" r="9" />
-                  <circle class="catchlight sub" cx="292" cy="113" r="5" />
-                </g>
+                <circle class="pupil" cx="105" cy="124" r="24" fill="url(#pupilGlow)" />
+                <circle class="catchlight main" cx="91" cy="103" r="9" />
+                <circle class="catchlight sub" cx="122" cy="113" r="5" />
+                <circle class="pupil" cx="275" cy="124" r="24" fill="url(#pupilGlow)" />
+                <circle class="catchlight main" cx="261" cy="103" r="9" />
+                <circle class="catchlight sub" cx="292" cy="113" r="5" />
               </g>
 
               <g class="blink-lids">
@@ -366,6 +365,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
-    <script src="./app.js?v=alsok-inspired-7" type="module"></script>
+    <script src="./app.js?v=alsok-inspired-8" type="module"></script>
   </body>
 </html>

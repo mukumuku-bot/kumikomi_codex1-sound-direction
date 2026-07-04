@@ -879,7 +879,9 @@ body.is-running-page .run-start-panel,
 
 body.is-running-page .run-stage,
 .person-run-screen.is-live .run-stage {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
   min-height: 100svh;
   min-height: 100dvh;
@@ -893,8 +895,9 @@ body.is-running-page .run-stage,
 
 .dog-eyes {
   display: block;
-  width: min(126vw, 1120px);
-  max-height: calc(100svh - 160px);
+  flex: 0 0 auto;
+  width: min(150vw, 1540px);
+  max-height: calc(100svh - 48px);
   overflow: visible;
   pointer-events: none;
   filter: drop-shadow(0 22px 42px rgba(0, 0, 0, 0.5));
@@ -902,7 +905,7 @@ body.is-running-page .run-stage,
 
 body.is-running-page .dog-eyes,
 .person-run-screen.is-live .dog-eyes {
-  width: min(136vw, 1320px);
+  width: min(156vw, 1600px);
   max-height: 100svh;
 }
 
@@ -1114,7 +1117,7 @@ body.is-running-page .dog-eyes,
   }
 
   .dog-eyes {
-    width: min(126vw, 860px);
+    width: min(150vw, 1060px);
   }
 }
 
@@ -1194,8 +1197,8 @@ body.is-running-page .dog-eyes,
   }
 
   .dog-eyes {
-    width: min(134vw, 680px);
-    max-height: calc(100svh - 260px);
+    width: min(166vw, 900px);
+    max-height: calc(100svh - 48px);
   }
 
   .run-floating-controls {
