@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#101828" />
-    <title>見守り支援システム</title>
+    <title>スマホ犬（Smartphone Dog）</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=prime-inspired-1" />
+    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-5" />
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#product" aria-label="製品説明へ">
-        <span class="brand-mark" aria-hidden="true">AI</span>
+        <span class="brand-mark" aria-hidden="true">SD</span>
         <span>
-          <strong>見守り支援システム</strong>
-          <small>Camera / Speech / Status</small>
+          <strong>スマホ犬</strong>
+          <small>Manual / Setup / Live</small>
         </span>
       </a>
     </header>
@@ -49,151 +49,110 @@
         <div class="product-layout">
           <div class="page-heading">
             <p class="eyebrow">Product</p>
-            <h1 id="productTitle">スマホの目を持つ犬型ロボット</h1>
+            <h1 id="productTitle">スマホ犬（Smartphone Dog）</h1>
             <p>
-              犬型ロボットの目の部分にスマートフォンを横向きで埋め込み、画面に表情豊かな目を表示します。
-              カメラとマイクで人や声を認識し、呼びかけに合わせて鳴いたり近づいたりします。
+              3Dプリンタでつくった犬の頭部にスマートフォンをはめ込み、画面に表示した「目」を犬の表情として見せる装置です。
+              ロボットとして役に立たせるよりも、スマホに犬らしい存在感を与え、ペットとして愛でることを目的にしています。
             </p>
-          </div>
-
-          <div class="robot-visual" aria-hidden="true">
-            <div class="robot-dog">
-              <div class="dog-head-shell">
-                <span class="dog-ear-shape left-ear"></span>
-                <span class="dog-ear-shape right-ear"></span>
-                <div class="phone-eye">
-                  <svg viewBox="0 0 320 170" role="img" aria-label="追従する目の表示">
-                    <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-                    <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-                    <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-                    <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-                    <g>
-                      <circle cx="100" cy="91" r="18" fill="#071319" />
-                      <circle cx="220" cy="91" r="18" fill="#071319" />
-                      <circle cx="93" cy="82" r="5" fill="#ffffff" />
-                      <circle cx="213" cy="82" r="5" fill="#ffffff" />
-                    </g>
-                  </svg>
-                </div>
-                <span class="dog-muzzle"></span>
-                <span class="dog-nose"></span>
-              </div>
-              <div class="dog-neck"></div>
-              <div class="dog-body-shell">
-                <span class="dog-tail"></span>
-                <span class="dog-chest-light"></span>
-              </div>
-              <span class="dog-leg front-left"></span>
-              <span class="dog-leg front-right"></span>
-              <span class="dog-leg back-left"></span>
-              <span class="dog-leg back-right"></span>
-              <span class="dog-paw paw-front-left"></span>
-              <span class="dog-paw paw-front-right"></span>
-              <span class="dog-paw paw-back-left"></span>
-              <span class="dog-paw paw-back-right"></span>
-              <span class="joint joint-shoulder"></span>
-              <span class="joint joint-hip"></span>
-              <span class="joint joint-knee-front"></span>
-              <span class="joint joint-knee-back"></span>
-              <span class="dog-ground"></span>
+            <div class="manual-scoreboard" aria-label="製品説明の要点">
+              <span><strong>01</strong> 3D PRINT HEAD</span>
+              <span><strong>02</strong> PHONE EYES</span>
+              <span><strong>03</strong> PET PROJECT</span>
             </div>
           </div>
+
+          <figure class="product-photo">
+            <img src="./assets/smartphone-dog-product.png" alt="スマホ犬の製品イメージ。白い犬型筐体の目の部分にスマートフォンを固定している。" />
+          </figure>
         </div>
 
         <div class="feature-grid">
           <article class="feature-card">
             <span>01</span>
-            <h2>横向きスマホが目になる</h2>
-            <p>ロボットの顔に埋め込んだスマートフォンへ、まばたきや視線移動を表示します。</p>
+            <h2>3Dプリンタ製の犬の頭部</h2>
+            <p>犬の頭部となる筐体を用意し、目の位置にスマートフォンを固定できる形にします。</p>
           </article>
           <article class="feature-card">
             <span>02</span>
-            <h2>名前を呼ぶと鳴く</h2>
-            <p>あらかじめ設定した名前を聞き取ると、呼ばれたことに反応して鳴きます。</p>
+            <h2>スマホ画面が目になる</h2>
+            <p>スマートフォンを目の部分にはめ込み、画面いっぱいに犬の目を表示します。</p>
           </article>
           <article class="feature-card">
             <span>03</span>
-            <h2>「おいで」で駆け寄る</h2>
-            <p>「おいで」と言われるとカメラで人を見つけ、見つけた人の方向へ向かいます。</p>
+            <h2>ペットとして愛でる</h2>
+            <p>呼びかけや動きに反応する目を通して、手元のスマホを犬のような存在として楽しみます。</p>
           </article>
         </div>
 
         <section class="visual-guide" aria-labelledby="visualGuideTitle">
           <div class="section-title">
             <p class="eyebrow">How It Works</p>
-            <h2 id="visualGuideTitle">ひと目でわかるしくみ</h2>
+            <h2 id="visualGuideTitle">使い始めるまでの流れ</h2>
           </div>
 
           <div class="guide-grid">
             <article class="guide-card phone-guide">
               <div class="guide-art" aria-hidden="true">
-                <div class="mini-robot">
-                  <span class="mini-ear left"></span>
-                  <span class="mini-ear right"></span>
-                  <div class="mini-phone">
-                    <span class="mini-eye"></span>
-                    <span class="mini-eye"></span>
-                  </div>
-                  <span class="mini-nose"></span>
+                <div class="step-visual app-launch-visual">
+                  <span class="phone-frame"></span>
+                  <span class="screen-line wide"></span>
+                  <span class="screen-line"></span>
+                  <span class="tap-circle"></span>
                 </div>
               </div>
-              <h3>スマホを横向きにして目にする</h3>
-              <p>画面いっぱいに目を出すので、表情や視線が遠くからでも見えます。</p>
+              <h3>1. アプリを起動する</h3>
+              <p>まずスマートフォンでこのアプリを開きます。初めて使う場合は、設定画面から初期設定を行います。</p>
             </article>
 
             <article class="guide-card word-guide">
               <div class="guide-art" aria-hidden="true">
-                <div class="sound-wave">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                <div class="step-visual settings-visual">
+                  <span class="setting-row"></span>
+                  <span class="setting-row"></span>
+                  <span class="setting-row short"></span>
+                  <span class="check-badge"></span>
                 </div>
-                <div class="word-bubble">ポチ!</div>
-                <div class="bark-bubble">ワン!</div>
               </div>
-              <h3>名前を呼ぶと鳴く</h3>
-              <p>設定した名前を聞き取ると、呼ばれた合図として鳴き声で返します。</p>
+              <h3>2. 初期設定をする</h3>
+              <p>犬の名前などを設定します。設定内容はあとから何度でも更新できます。</p>
             </article>
 
             <article class="guide-card come-guide">
               <div class="guide-art" aria-hidden="true">
-                <div class="person-icon">
-                  <span></span>
-                </div>
-                <div class="route-line">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <div class="small-dog">
-                  <span class="dog-ear"></span>
-                  <span class="dog-body"></span>
+                <div class="step-visual docking-visual">
+                  <span class="dock-shell"></span>
+                  <span class="dock-phone"></span>
+                  <span class="dock-arrow"></span>
                 </div>
               </div>
-              <h3>「おいで」で人の方へ行く</h3>
-              <p>声を合図にカメラで人を探し、見つけた人へ向かって移動します。</p>
+              <h3>3. スマホを本体に固定する</h3>
+              <p>画面に目が表示されたスマホを、犬の頭部の目の部分にはめ込んで固定します。</p>
             </article>
           </div>
         </section>
 
-        <section class="behavior-flow" aria-label="動作の流れ">
-          <h2>動作の流れ</h2>
+        <section class="behavior-flow" aria-label="取扱手順">
+          <h2>取扱手順</h2>
           <ol>
             <li>
-              <strong>待機</strong>
-              <span>目を表示しながら、登録した名前と「おいで」という言葉を待ちます。</span>
+              <strong>動作させる</strong>
+              <span>設定が終わったら「動作させる」ボタンを押します。</span>
             </li>
             <li>
-              <strong>名前に反応</strong>
-              <span>名前を呼ばれると、犬のように鳴いて反応します。</span>
+              <strong>マイクを許可する</strong>
+              <span>ブラウザにマイクの使用許可を求められたら、承認します。</span>
             </li>
             <li>
-              <strong>人を探す</strong>
-              <span>「おいで」を聞くとカメラで人を検出し、視線を人の方向へ向けます。</span>
+              <strong>カメラを許可する</strong>
+              <span>続けてカメラの使用許可を求められたら、承認します。</span>
             </li>
             <li>
-              <strong>駆け寄る</strong>
-              <span>検出した人の位置へ向かって移動する想定です。</span>
+              <strong>ドッキングする</strong>
+              <span>目が表示されたスマホを本体の目の部分にはめ込んで固定します。これで動く状態は完了です。</span>
+            </li>
+            <li>
+              <strong>注意</strong>
+              <span>スマホ犬は一般に販売される、または買われる前提の製品ではありません。制作と体験を楽しむためのプロジェクトです。</span>
             </li>
           </ol>
         </section>
@@ -297,7 +256,7 @@
             <p class="eyebrow">Live</p>
             <h1 id="runningTitle">動作中表示ページ</h1>
             <p>動作を開始すると、画面には目だけを表示します。目の画面をタップすると、この開始画面に戻ります。</p>
-            <button id="startRunButton" class="primary-button" type="button">動作開始</button>
+            <button id="startRunButton" class="primary-button" type="button">動作させる</button>
           </section>
 
           <section class="run-stage" aria-label="人物を追いかける目">
@@ -362,6 +321,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
-    <script src="./app.js?v=prime-inspired-1" type="module"></script>
+    <script src="./app.js?v=alsok-inspired-5" type="module"></script>
   </body>
 </html>

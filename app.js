@@ -283,7 +283,8 @@ async function startRun() {
     if (runState.running) stopRun();
     runState.running = true;
     updateRunningViewMode();
-    elements.startRunButton.disabled = true;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -292,20 +293,25 @@ async function startRun() {
     runState.stream = stream;
     elements.video.srcObject = stream;
     await elements.video.play();
+    elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
+    const detectionReady = await prepareDetection();
     updateRunningViewMode();
     elements.stopRunButton.disabled = false;
-    elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
-    await loadModel();
-    await loadFaceDetector();
-    elements.runStatusText.textContent = "人物を探しています";
+    elements.runStatusText.textContent = detectionReady ? "人物を探しています" : "目だけを表示しています";
     startHiddenTranscription();
-    detectLoop();
+    if (detectionReady) {
+      detectLoop();
+    } else {
+      sleepEyes();
+    }
   } catch (error) {
-    runState.running = false;
+    stopStream(runState.stream);
+    runState.stream = null;
+    elements.video.srcObject = null;
     updateRunningViewMode();
     elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
-    elements.startRunButton.disabled = false;
-    elements.stopRunButton.disabled = true;
+    elements.stopRunButton.disabled = false;
+    sleepEyes();
   }
 }
 
@@ -339,6 +345,25 @@ async function loadModel() {
     throw new Error("人物検出モデルを読み込めませんでした");
   }
   runState.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
+}
+
+async function prepareDetection() {
+  try {
+    await loadModel();
+  } catch (error) {
+    console.warn(error);
+    runState.model = null;
+    return false;
+  }
+
+  try {
+    await loadFaceDetector();
+  } catch (error) {
+    console.warn(error);
+    runState.faceDetector = null;
+  }
+
+  return true;
 }
 
 async function loadFaceDetector() {
