@@ -3,57 +3,432 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f172a" />
-    <title>人物中心ズレ検知</title>
+    <meta name="theme-color" content="#101828" />
+    <title>スマホ犬（Smartphone Dog）</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=alsok-inspired-16" />
   </head>
   <body>
-    <main class="app-shell">
-      <section class="eye-stage" aria-label="追従する目">
-        <svg
-          id="dogEyes"
-          class="dog-eyes"
-          viewBox="0 0 320 170"
-          role="img"
-          aria-label="人を追いかけるロボットの目"
-        >
-          <path d="M56 54 Q100 26 144 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-          <path d="M176 54 Q220 26 264 54" fill="none" stroke="#89d8ff" stroke-width="8" stroke-linecap="round" />
-          <ellipse cx="100" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-          <ellipse cx="220" cy="88" rx="48" ry="39" fill="#eafcff" stroke="#0b2530" stroke-width="6" />
-          <g id="pupilGroup">
-            <circle cx="100" cy="91" r="18" fill="#071319" />
-            <circle cx="220" cy="91" r="18" fill="#071319" />
-            <circle cx="93" cy="82" r="5" fill="#ffffff" />
-            <circle cx="213" cy="82" r="5" fill="#ffffff" />
-          </g>
-          <g class="blink-lids">
-            <rect class="lid top-lid left-lid" x="52" y="58" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid top-lid right-lid" x="172" y="58" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid bottom-lid left-lid" x="52" y="99" width="96" height="23" rx="12" fill="#182536" />
-            <rect class="lid bottom-lid right-lid" x="172" y="99" width="96" height="23" rx="12" fill="#182536" />
-          </g>
-        </svg>
+    <header class="topbar">
+      <a class="brand" href="#product" aria-label="製品説明へ">
+        <span class="brand-mark" aria-hidden="true">SD</span>
+        <span>
+          <strong>スマホ犬</strong>
+          <small>Manual / Setup / Live</small>
+        </span>
+      </a>
+    </header>
+
+    <main class="page-shell">
+      <section id="account" class="page" data-page="account" aria-labelledby="accountTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Account</p>
+          <h1 id="accountTitle">アカウント作成・ログイン</h1>
+          <p>犬の名前をアカウントごとに保存します。パスワードはGitHubには置かず、Supabase Authで管理します。</p>
+        </div>
+
+        <div id="accountStatus" class="account-status">Supabase接続を確認しています</div>
+
+        <div class="account-grid">
+          <article class="account-card">
+            <h2>現在の状態</h2>
+            <p id="currentAccountText">未ログイン</p>
+            <p id="currentDogNameText">犬の名前: ポチ</p>
+            <button id="logoutButton" class="secondary-button" type="button" disabled>ログアウト</button>
+          </article>
+
+          <form id="loginForm" class="account-card">
+            <h2>ログイン</h2>
+            <label class="field compact-field">
+              <span>メールアドレス</span>
+              <input id="loginEmail" type="email" autocomplete="email" placeholder="登録したメールアドレス" required />
+            </label>
+            <label class="field compact-field">
+              <span>パスワード</span>
+              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="パスワード" required />
+            </label>
+            <button class="primary-button" type="submit">ログイン</button>
+            <button id="resendConfirmationButton" class="secondary-button" type="button">確認メールを再送</button>
+          </form>
+
+          <form id="signUpForm" class="account-card">
+            <h2>新規アカウント作成</h2>
+            <label class="field compact-field">
+              <span>メールアドレス</span>
+              <input id="signUpEmail" type="email" autocomplete="email" placeholder="例: dog@example.com" required />
+            </label>
+            <label class="field compact-field">
+              <span>パスワード</span>
+              <input id="signUpPassword" type="password" autocomplete="new-password" minlength="6" placeholder="6文字以上" required />
+            </label>
+            <label class="field compact-field">
+              <span>犬の名前</span>
+              <input id="signUpDogName" type="text" autocomplete="off" placeholder="例: ポチ" />
+            </label>
+            <button class="primary-button" type="submit">アカウント作成</button>
+          </form>
+        </div>
       </section>
 
-      <button id="startButton" class="camera-start" type="button" aria-label="カメラ開始"></button>
-      <video id="video" class="hidden-camera" playsinline muted autoplay></video>
-      <canvas id="overlay" class="hidden-camera"></canvas>
-      <div id="loadingState" class="visually-hidden">カメラ待機中</div>
-      <div id="offsetText" class="visually-hidden">--%</div>
-      <div id="directionText" class="visually-hidden">人物を検知すると表示します</div>
-      <div id="xOffsetText" class="visually-hidden">--%</div>
-      <div id="yOffsetText" class="visually-hidden">--%</div>
-      <div id="xDirectionText" class="visually-hidden">--</div>
-      <div id="yDirectionText" class="visually-hidden">--</div>
-      <div id="personCountText" class="visually-hidden">0</div>
-      <div id="confidenceText" class="visually-hidden">信頼度 --</div>
-      <input id="mirrorToggle" type="checkbox" checked hidden />
+      <section id="settings" class="page" data-page="settings" aria-labelledby="settingsTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Settings</p>
+          <h1 id="settingsTitle">設定ページ</h1>
+          <p>ログイン中は犬の名前をSupabaseに保存します。未ログインの場合は、この端末のブラウザに一時保存します。</p>
+        </div>
+
+        <form id="settingsForm" class="settings-grid">
+          <label class="field">
+            <span>犬の名前</span>
+            <input id="settingDogName" type="text" autocomplete="off" placeholder="例: ポチ" />
+          </label>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">保存</button>
+          </div>
+          <p id="settingsSaveMessage" class="save-message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="product" class="page" data-page="product" aria-labelledby="productTitle">
+        <div class="product-layout">
+          <div class="page-heading">
+            <p class="eyebrow">Product</p>
+            <h1 id="productTitle">スマホ犬（Smartphone Dog）</h1>
+            <p>
+              3Dプリンタでつくった犬の頭部にスマートフォンをはめ込み、画面に表示した「目」を犬の表情として見せる装置です。
+              ロボットとして役に立たせるよりも、スマホに犬らしい存在感を与え、ペットとして愛でることを目的にしています。
+            </p>
+            <div class="manual-scoreboard" aria-label="製品説明の要点">
+              <span><strong>01</strong> 3D PRINT HEAD</span>
+              <span><strong>02</strong> PHONE EYES</span>
+              <span><strong>03</strong> PET PROJECT</span>
+            </div>
+          </div>
+
+          <figure class="product-photo">
+            <img src="./assets/smartphone-dog-product.png" alt="スマホ犬の製品イメージ。白い犬型筐体の目の部分にスマートフォンを固定している。" />
+          </figure>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span>01</span>
+            <h2>3Dプリンタ製の犬の頭部</h2>
+            <p>犬の頭部となる筐体を用意し、目の位置にスマートフォンを固定できる形にします。</p>
+          </article>
+          <article class="feature-card">
+            <span>02</span>
+            <h2>スマホ画面が目になる</h2>
+            <p>スマートフォンを目の部分にはめ込み、画面いっぱいに犬の目を表示します。</p>
+          </article>
+          <article class="feature-card">
+            <span>03</span>
+            <h2>ペットとして愛でる</h2>
+            <p>呼びかけや動きに反応する目を通して、手元のスマホを犬のような存在として楽しみます。</p>
+          </article>
+        </div>
+
+        <section class="visual-guide" aria-labelledby="visualGuideTitle">
+          <div class="section-title">
+            <p class="eyebrow">How It Works</p>
+            <h2 id="visualGuideTitle">使い始めるまでの流れ</h2>
+          </div>
+
+          <div class="guide-grid">
+            <article class="guide-card phone-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="step-visual app-launch-visual">
+                  <span class="phone-frame"></span>
+                  <span class="screen-line wide"></span>
+                  <span class="screen-line"></span>
+                  <span class="tap-circle"></span>
+                </div>
+              </div>
+              <h3>1. アプリを起動する</h3>
+              <p>まずスマートフォンでこのアプリを開きます。初めて使う場合は、設定画面から初期設定を行います。</p>
+            </article>
+
+            <article class="guide-card word-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="step-visual settings-visual">
+                  <span class="setting-row"></span>
+                  <span class="setting-row"></span>
+                  <span class="setting-row short"></span>
+                  <span class="check-badge"></span>
+                </div>
+              </div>
+              <h3>2. 初期設定をする</h3>
+              <p>犬の名前などを設定します。設定内容はあとから何度でも更新できます。</p>
+            </article>
+
+            <article class="guide-card come-guide">
+              <div class="guide-art" aria-hidden="true">
+                <div class="step-visual docking-visual">
+                  <span class="dock-shell"></span>
+                  <span class="dock-phone"></span>
+                  <span class="dock-arrow"></span>
+                </div>
+              </div>
+              <h3>3. スマホを本体に固定する</h3>
+              <p>画面に目が表示されたスマホを、犬の頭部の目の部分にはめ込んで固定します。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="behavior-flow" aria-label="取扱手順">
+          <h2>取扱手順</h2>
+          <ol>
+            <li>
+              <strong>犬の名前を設定する</strong>
+              <span>設定ページで犬の名前を入力して保存します。この名前が呼びかけに反応する合図になります。</span>
+            </li>
+            <li>
+              <strong>動作を開始する</strong>
+              <span>動作中ページを開き、「動作させる」ボタンを押します。画面は目だけの表示に切り替わります。</span>
+            </li>
+            <li>
+              <strong>カメラを許可する</strong>
+              <span>人物を見つけて目で追うため、ブラウザにカメラの使用許可を求められたら承認します。</span>
+            </li>
+            <li>
+              <strong>マイクを許可する</strong>
+              <span>名前や「おいで」の声を聞き取るため、マイクの使用許可を求められたら承認します。</span>
+            </li>
+            <li>
+              <strong>ドッキングする</strong>
+              <span>目が表示されたスマホを横向きのまま、本体の目の部分にはめ込んで固定します。</span>
+            </li>
+            <li>
+              <strong>終了する</strong>
+              <span>動作を止めたいときは、目が表示されている画面をタップします。開始画面に戻ったら終了です。</span>
+            </li>
+          </ol>
+        </section>
+      </section>
+
+      <section id="check" class="page" data-page="check" aria-labelledby="checkTitle">
+        <div class="page-heading">
+          <p class="eyebrow">Diagnostics</p>
+          <h1 id="checkTitle">動作診断ページ</h1>
+          <p>動作中ページで不具合が出たときに、カメラ、人物検出、マイク、音声認識、鳴き声のどこで止まっているかを確認します。</p>
+        </div>
+
+        <div class="diagnostic-actions">
+          <button id="runAllChecksButton" class="primary-button" type="button">まとめて診断</button>
+          <button id="barkCheckButton" class="secondary-button" type="button">鳴き声テスト</button>
+        </div>
+
+        <div class="check-grid diagnostic-grid">
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="browserDot"></span>
+              <h2>ブラウザ</h2>
+              <p id="browserCheckText">確認中</p>
+            </div>
+            <button id="browserCheckButton" class="secondary-button" type="button">再確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="cameraDot"></span>
+              <h2>カメラ</h2>
+              <p id="cameraCheckText">未確認</p>
+            </div>
+            <button id="cameraCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="modelDot"></span>
+              <h2>人物検出</h2>
+              <p id="modelCheckText">未確認</p>
+            </div>
+            <button id="modelCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="micDot"></span>
+              <h2>マイク</h2>
+              <p id="micCheckText">未確認</p>
+            </div>
+            <button id="micCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="speechDot"></span>
+              <h2>音声認識</h2>
+              <p id="speechCheckText">未確認</p>
+            </div>
+            <button id="speechCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="barkDot"></span>
+              <h2>鳴き声</h2>
+              <p id="barkCheckText">未確認</p>
+            </div>
+            <button class="secondary-button" type="button" data-bark-trigger>確認</button>
+          </article>
+
+          <article class="check-card">
+            <div>
+              <span class="status-dot" id="bluetoothDot"></span>
+              <h2>本体接続</h2>
+              <p id="bluetoothCheckText">未確認</p>
+            </div>
+            <button id="bluetoothCheckButton" class="secondary-button" type="button">確認</button>
+          </article>
+        </div>
+
+        <section class="voice-check-panel" aria-label="音声確認結果">
+          <div class="voice-readout">
+            <span>文字起こし</span>
+            <p id="checkTranscriptText">まだ聞き取っていません</p>
+          </div>
+          <div class="voice-readout">
+            <span>音量</span>
+            <strong id="volumeText">0%</strong>
+            <div class="volume-meter" aria-hidden="true">
+              <span id="volumeBar"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="diagnostic-help" aria-label="原因の見方">
+          <h2>原因の見方</h2>
+          <div>
+            <p><strong>目が追従しない</strong><span>カメラと人物検出を確認してください。</span></p>
+            <p><strong>名前に反応しない</strong><span>マイク、音声認識、文字起こし結果を確認してください。</span></p>
+            <p><strong>鳴かない</strong><span>鳴き声テストで音が出るか確認してください。</span></p>
+          </div>
+        </section>
+      </section>
+
+      <section id="running" class="page" data-page="running" aria-labelledby="runningTitle">
+        <div class="person-run-screen">
+          <section class="run-start-panel" aria-labelledby="runningTitle">
+            <p class="eyebrow">Live</p>
+            <h1 id="runningTitle">動作中表示ページ</h1>
+            <p>動作を開始すると、画面には目だけを表示します。目の画面をタップすると、この開始画面に戻ります。</p>
+            <button id="startRunButton" class="primary-button" type="button">動作させる</button>
+          </section>
+
+          <section class="run-stage" aria-label="人物を追いかける目">
+            <svg id="dogEyes" class="dog-eyes" viewBox="20 24 340 180" role="img" aria-label="人物を追いかける目">
+              <defs>
+                <radialGradient id="irisGlow" cx="42%" cy="38%" r="68%">
+                  <stop offset="0%" stop-color="#f7fdff" />
+                  <stop offset="34%" stop-color="#58c9ff" />
+                  <stop offset="68%" stop-color="#3478ff" />
+                  <stop offset="100%" stop-color="#10236b" />
+                </radialGradient>
+                <radialGradient id="pupilGlow" cx="42%" cy="34%" r="70%">
+                  <stop offset="0%" stop-color="#1a3342" />
+                  <stop offset="58%" stop-color="#061019" />
+                  <stop offset="100%" stop-color="#02070d" />
+                </radialGradient>
+                <linearGradient id="lidShade" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#182538" />
+                  <stop offset="100%" stop-color="#07101d" />
+                </linearGradient>
+                <filter id="blueEyeGlow" x="-55%" y="-55%" width="210%" height="210%">
+                  <feGaussianBlur stdDeviation="4.5" result="blur" />
+                  <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.24 0 0 0 0 0.68 0 0 0 0 1 0 0 0 0.92 0" result="glow" />
+                  <feMerge>
+                    <feMergeNode in="glow" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <path class="eye-brow" d="M63 72 Q105 43 147 72" />
+              <path class="eye-brow" d="M233 72 Q275 43 317 72" />
+
+              <g class="eye-shell">
+                <ellipse class="eye-aura" cx="105" cy="124" rx="58" ry="64" />
+                <ellipse class="eye-aura" cx="275" cy="124" rx="58" ry="64" />
+                <ellipse class="eye-rim" cx="105" cy="124" rx="42" ry="48" />
+                <ellipse class="eye-rim" cx="275" cy="124" rx="42" ry="48" />
+              </g>
+
+              <g class="eye-orbs">
+                <circle class="iris" cx="105" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+                <circle class="iris-line" cx="105" cy="124" r="33" />
+                <circle class="iris" cx="275" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+                <circle class="iris-line" cx="275" cy="124" r="33" />
+              </g>
+
+              <g id="pupilGroup">
+                <circle class="pupil" cx="105" cy="124" r="24" fill="url(#pupilGlow)" />
+                <circle class="catchlight main" cx="91" cy="103" r="9" />
+                <circle class="catchlight sub" cx="122" cy="113" r="5" />
+                <circle class="pupil" cx="275" cy="124" r="24" fill="url(#pupilGlow)" />
+                <circle class="catchlight main" cx="261" cy="103" r="9" />
+                <circle class="catchlight sub" cx="292" cy="113" r="5" />
+              </g>
+
+              <g class="blink-lids">
+                <ellipse class="lid upper-lid" cx="105" cy="88" rx="58" ry="44" fill="url(#lidShade)" />
+                <ellipse class="lid lower-lid" cx="105" cy="160" rx="58" ry="44" fill="url(#lidShade)" />
+                <ellipse class="lid upper-lid" cx="275" cy="88" rx="58" ry="44" fill="url(#lidShade)" />
+                <ellipse class="lid lower-lid" cx="275" cy="160" rx="58" ry="44" fill="url(#lidShade)" />
+                <path class="closed-eye-line" d="M65 126 Q105 139 145 126" />
+                <path class="closed-eye-line" d="M235 126 Q275 139 315 126" />
+              </g>
+            </svg>
+            <video id="video" class="hidden-camera" playsinline muted autoplay></video>
+            <canvas id="overlay" class="hidden-camera"></canvas>
+          </section>
+
+          <div class="run-floating-controls" aria-labelledby="runningTitle">
+            <span id="runStatusText" class="run-status">開始待ち</span>
+            <button id="stopRunButton" class="visually-hidden" type="button" disabled>停止</button>
+          </div>
+
+          <div id="personCountText" class="visually-hidden">0</div>
+          <div id="directionText" class="visually-hidden">未検出</div>
+          <div id="confidenceText" class="visually-hidden">--</div>
+          <div id="speechPanel" class="visually-hidden" hidden>
+            <span id="transcriptionStatus">待機中</span>
+            <button id="transcribeButton" type="button">文字起こし開始</button>
+            <textarea id="transcriptText" readonly></textarea>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <nav class="page-dock" aria-label="ページ切り替え">
+      <a href="#product" data-route="product">
+        <span aria-hidden="true">i</span>
+        製品説明
+      </a>
+      <a href="#account" data-route="account">
+        <span aria-hidden="true">@</span>
+        アカウント
+      </a>
+      <a href="#settings" data-route="settings">
+        <span aria-hidden="true">⚙</span>
+        設定
+      </a>
+      <a href="#check" data-route="check">
+        <span aria-hidden="true">✓</span>
+        動作確認
+      </a>
+      <a href="#running" data-route="running">
+        <span aria-hidden="true">▶</span>
+        動作中
+      </a>
+    </nav>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-    <script src="./app.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
+    <script src="./supabase-config.js?v=alsok-inspired-16"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js?v=alsok-inspired-16" type="module"></script>
   </body>
 </html>
