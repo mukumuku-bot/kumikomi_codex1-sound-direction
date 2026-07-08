@@ -1,168 +1,785 @@
-const startButton = document.querySelector("#startButton");
-const mirrorToggle = document.querySelector("#mirrorToggle");
-const video = document.querySelector("#video");
-const overlay = document.querySelector("#overlay");
-const dogEyes = document.querySelector("#dogEyes");
-const pupilGroup = document.querySelector("#pupilGroup");
-const loadingState = document.querySelector("#loadingState");
-const offsetText = document.querySelector("#offsetText");
-const directionText = document.querySelector("#directionText");
-const xOffsetText = document.querySelector("#xOffsetText");
-const yOffsetText = document.querySelector("#yOffsetText");
-const xDirectionText = document.querySelector("#xDirectionText");
-const yDirectionText = document.querySelector("#yDirectionText");
-const personCountText = document.querySelector("#personCountText");
-const confidenceText = document.querySelector("#confidenceText");
-const ctx = overlay.getContext("2d");
+const routes = ["account", "settings", "product", "check", "running"];
+const defaultSettings = {
+  dogName: "ポチ",
+};
 
-const state = {
+const settings = loadSettings();
+const elements = {
+  tabs: document.querySelectorAll("[data-route]"),
+  pages: document.querySelectorAll("[data-page]"),
+  accountStatus: document.querySelector("#accountStatus"),
+  signUpForm: document.querySelector("#signUpForm"),
+  signUpEmail: document.querySelector("#signUpEmail"),
+  signUpPassword: document.querySelector("#signUpPassword"),
+  signUpDogName: document.querySelector("#signUpDogName"),
+  loginForm: document.querySelector("#loginForm"),
+  loginEmail: document.querySelector("#loginEmail"),
+  loginPassword: document.querySelector("#loginPassword"),
+  resendConfirmationButton: document.querySelector("#resendConfirmationButton"),
+  logoutButton: document.querySelector("#logoutButton"),
+  currentAccountText: document.querySelector("#currentAccountText"),
+  currentDogNameText: document.querySelector("#currentDogNameText"),
+  settingsForm: document.querySelector("#settingsForm"),
+  settingDogName: document.querySelector("#settingDogName"),
+  settingsSaveMessage: document.querySelector("#settingsSaveMessage"),
+  browserDot: document.querySelector("#browserDot"),
+  cameraDot: document.querySelector("#cameraDot"),
+  modelDot: document.querySelector("#modelDot"),
+  micDot: document.querySelector("#micDot"),
+  speechDot: document.querySelector("#speechDot"),
+  barkDot: document.querySelector("#barkDot"),
+  bluetoothDot: document.querySelector("#bluetoothDot"),
+  browserCheckText: document.querySelector("#browserCheckText"),
+  cameraCheckText: document.querySelector("#cameraCheckText"),
+  modelCheckText: document.querySelector("#modelCheckText"),
+  micCheckText: document.querySelector("#micCheckText"),
+  speechCheckText: document.querySelector("#speechCheckText"),
+  barkCheckText: document.querySelector("#barkCheckText"),
+  checkTranscriptText: document.querySelector("#checkTranscriptText"),
+  volumeText: document.querySelector("#volumeText"),
+  volumeBar: document.querySelector("#volumeBar"),
+  bluetoothCheckText: document.querySelector("#bluetoothCheckText"),
+  browserCheckButton: document.querySelector("#browserCheckButton"),
+  cameraCheckButton: document.querySelector("#cameraCheckButton"),
+  modelCheckButton: document.querySelector("#modelCheckButton"),
+  micCheckButton: document.querySelector("#micCheckButton"),
+  speechCheckButton: document.querySelector("#speechCheckButton"),
+  runAllChecksButton: document.querySelector("#runAllChecksButton"),
+  barkCheckButton: document.querySelector("#barkCheckButton"),
+  bluetoothCheckButton: document.querySelector("#bluetoothCheckButton"),
+  barkTriggerButtons: document.querySelectorAll("[data-bark-trigger]"),
+  startRunButton: document.querySelector("#startRunButton"),
+  stopRunButton: document.querySelector("#stopRunButton"),
+  runScreen: document.querySelector(".person-run-screen"),
+  dogEyes: document.querySelector("#dogEyes"),
+  pupilGroup: document.querySelector("#pupilGroup"),
+  runStage: document.querySelector(".run-stage"),
+  video: document.querySelector("#video"),
+  overlay: document.querySelector("#overlay"),
+  runStatusText: document.querySelector("#runStatusText"),
+  personCountText: document.querySelector("#personCountText"),
+  directionText: document.querySelector("#directionText"),
+  confidenceText: document.querySelector("#confidenceText"),
+  speechPanel: document.querySelector("#speechPanel"),
+  transcriptionStatus: document.querySelector("#transcriptionStatus"),
+  transcribeButton: document.querySelector("#transcribeButton"),
+  transcriptText: document.querySelector("#transcriptText"),
+};
+
+const runState = {
   model: null,
+  faceDetector: null,
   stream: null,
   running: false,
-  rafId: null,
   detecting: false,
+  rafId: null,
   eyeX: 0,
   eyeY: 0,
   sleeping: false,
+  trackedCenter: null,
+  coveredFrames: 0,
 };
 
-const PERSON_SCORE_MIN = 0.45;
-const EYE_RANGE_X = 30;
-const EYE_RANGE_Y = 20;
+const speechState = {
+  recognition: null,
+  supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+  listening: false,
+  shouldListen: false,
+  finalText: "",
+  interimText: "",
+  lastCommandKey: "",
+  lastCommandAt: 0,
+  audioContext: null,
+  volumeStream: null,
+  volumeAudioContext: null,
+  volumeAnalyser: null,
+  volumeData: null,
+  volumeRafId: null,
+  barkNoiseBuffer: null,
+};
 
-startButton.addEventListener("click", start);
-mirrorToggle.addEventListener("change", updateMirrorMode);
+const supabaseConfig = window.SMARTPHONE_DOG_SUPABASE || {};
+const supabaseClient = createSupabaseClient();
+const authState = {
+  user: null,
+  session: null,
+};
+const AUTH_REDIRECT_URL = new URL("index.html#account", window.location.href).href;
+
+const ctx = elements.overlay.getContext("2d");
+const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
+const EYE_RANGE_X = 30;
+const EYE_RANGE_Y = 18;
+const EYE_TRACKING_RESPONSE = 0.42;
+const FACE_COVER_SWITCH_FRAMES = 8;
+
+window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
+elements.signUpForm.addEventListener("submit", createAccount);
+elements.loginForm.addEventListener("submit", loginAccount);
+elements.resendConfirmationButton.addEventListener("click", resendConfirmationEmail);
+elements.logoutButton.addEventListener("click", logoutAccount);
+elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
+elements.browserCheckButton.addEventListener("click", checkBrowser);
+elements.cameraCheckButton.addEventListener("click", checkCamera);
+elements.modelCheckButton.addEventListener("click", checkModel);
+elements.micCheckButton.addEventListener("click", checkMic);
+elements.speechCheckButton.addEventListener("click", checkSpeech);
+elements.runAllChecksButton.addEventListener("click", runAllChecks);
+elements.barkCheckButton.addEventListener("click", checkBark);
+elements.barkTriggerButtons.forEach((button) => button.addEventListener("click", checkBark));
+elements.bluetoothCheckButton.addEventListener("click", checkBluetooth);
+elements.startRunButton.addEventListener("click", startRun);
+elements.stopRunButton.addEventListener("click", stopRun);
+elements.runScreen.addEventListener("click", (event) => {
+  if (!event.target.closest(".run-stage")) return;
+  if (runState.running) stopRun();
+});
+elements.transcribeButton.addEventListener("click", toggleTranscription);
+
+applySettingsToForm();
+initializeAuth();
+setupTranscription();
+checkBrowser();
+showRouteFromHash();
 scheduleBlink();
 
-async function start() {
-  startButton.disabled = true;
-  loadingState.textContent = "内カメラを起動中";
+function showRouteFromHash() {
+  const route = window.location.hash.replace("#", "") || "product";
+  const currentRoute = routes.includes(route) ? route : "product";
+
+  elements.pages.forEach((page) => {
+    page.classList.toggle("is-active", page.dataset.page === currentRoute);
+  });
+
+  elements.tabs.forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.route === currentRoute);
+  });
+
+  updateRunningViewMode();
+
+  if (currentRoute !== "running" && currentRoute !== "check") {
+    stopHiddenTranscription();
+  }
+
+  if (currentRoute !== "running" && runState.running) {
+    stopRun();
+  }
+
+  if (currentRoute !== "check") {
+    stopVolumeMeter();
+  }
+}
+
+function updateRunningViewMode() {
+  const route = window.location.hash.replace("#", "") || "product";
+  const live = route === "running" && runState.running;
+  document.body.classList.toggle("is-running-page", live);
+  elements.runScreen.classList.toggle("is-live", live);
+}
+
+function createSupabaseClient() {
+  const url = String(supabaseConfig.url || "").trim();
+  const anonKey = String(supabaseConfig.anonKey || "").trim();
+  const configured = url.startsWith("https://") && anonKey.length > 20 && window.supabase?.createClient;
+  if (!configured) return null;
+  return window.supabase.createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+async function initializeAuth() {
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定です。supabase-config.jsにURLと公開anon keyを設定してください。", "is-warn");
+    return;
+  }
+
+  updateAccountUi("Supabaseに接続しています", "");
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    updateAccountUi(`ログイン状態を確認できません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  authState.session = data.session;
+  authState.user = data.session?.user || null;
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    authState.session = session;
+    authState.user = session?.user || null;
+    syncAccountSettings();
+  });
+  await syncAccountSettings();
+}
+
+async function createAccount(event) {
+  event.preventDefault();
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定のため、アカウントを作成できません。", "is-bad");
+    return;
+  }
+
+  const email = elements.signUpEmail.value.trim();
+  const password = elements.signUpPassword.value;
+  const dogName = elements.signUpDogName.value.trim() || defaultSettings.dogName;
+  updateAccountUi("アカウントを作成しています", "");
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: AUTH_REDIRECT_URL,
+      data: { dog_name: dogName },
+    },
+  });
+
+  if (error) {
+    updateAccountUi(`アカウントを作成できません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  settings.dogName = dogName;
+  saveLocalSettings();
+  applySettingsToForm();
+
+  if (data.session) {
+    authState.session = data.session;
+    authState.user = data.user;
+    await saveDogProfile(dogName, true);
+    updateAccountUi("アカウントを作成してログインしました", "is-ok");
+  } else {
+    updateAccountUi("確認メールを送信しました。メール確認後にログインしてください。", "is-ok");
+  }
+}
+
+async function loginAccount(event) {
+  event.preventDefault();
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定のため、ログインできません。", "is-bad");
+    return;
+  }
+
+  updateAccountUi("ログインしています", "");
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: elements.loginEmail.value.trim(),
+    password: elements.loginPassword.value,
+  });
+
+  if (error) {
+    updateAccountUi(`ログインできません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  authState.session = data.session;
+  authState.user = data.user;
+  await syncAccountSettings();
+}
+
+async function resendConfirmationEmail() {
+  if (!supabaseClient) {
+    updateAccountUi("Supabaseが未設定のため、確認メールを再送できません。", "is-bad");
+    return;
+  }
+
+  const email = elements.loginEmail.value.trim() || elements.signUpEmail.value.trim();
+  if (!email) {
+    updateAccountUi("確認メールを再送するメールアドレスを入力してください。", "is-warn");
+    elements.loginEmail.focus();
+    return;
+  }
+
+  updateAccountUi("確認メールを再送しています", "");
+  const { error } = await supabaseClient.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: AUTH_REDIRECT_URL,
+    },
+  });
+
+  if (error) {
+    updateAccountUi(`確認メールを再送できません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  updateAccountUi("確認メールを再送しました。迷惑メールフォルダも確認してください。", "is-ok");
+}
+
+async function logoutAccount() {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    updateAccountUi(`ログアウトできません: ${error.message}`, "is-bad");
+    return;
+  }
+  authState.session = null;
+  authState.user = null;
+  updateAccountUi("ログアウトしました。犬の名前はこの端末の一時設定を使います。", "is-warn");
+}
+
+async function syncAccountSettings() {
+  if (!supabaseClient || !authState.user) {
+    updateAccountUi("未ログインです。ログインすると犬の名前をアカウントごとに保存できます。", supabaseClient ? "is-warn" : "is-bad");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("dog_profiles")
+    .select("dog_name")
+    .eq("user_id", authState.user.id)
+    .maybeSingle();
+
+  if (error) {
+    updateAccountUi(`犬の名前を読み込めません: ${error.message}`, "is-bad");
+    return;
+  }
+
+  if (data?.dog_name) {
+    settings.dogName = data.dog_name;
+  } else {
+    await saveDogProfile(settings.dogName || defaultSettings.dogName, true);
+  }
+
+  saveLocalSettings();
+  applySettingsToForm();
+  updateAccountUi("ログイン中です。犬の名前はSupabaseに保存されます。", "is-ok");
+}
+
+async function saveDogProfile(dogName, silent = false) {
+  if (!supabaseClient || !authState.user) return false;
+  const { error } = await supabaseClient.from("dog_profiles").upsert(
+    {
+      user_id: authState.user.id,
+      dog_name: dogName,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) {
+    if (!silent) updateAccountUi(`犬の名前を保存できません: ${error.message}`, "is-bad");
+    return false;
+  }
+  if (!silent) updateAccountUi("犬の名前をSupabaseに保存しました。", "is-ok");
+  return true;
+}
+
+function updateAccountUi(message, statusClass = "") {
+  elements.accountStatus.textContent = message;
+  elements.accountStatus.classList.remove("is-ok", "is-warn", "is-bad");
+  if (statusClass) elements.accountStatus.classList.add(statusClass);
+
+  const configured = Boolean(supabaseClient);
+  const loggedIn = Boolean(authState.user);
+  elements.signUpForm.querySelectorAll("input, button").forEach((node) => {
+    node.disabled = !configured;
+  });
+  elements.loginForm.querySelectorAll("input, button").forEach((node) => {
+    node.disabled = !configured;
+  });
+  elements.resendConfirmationButton.disabled = !configured;
+  elements.logoutButton.disabled = !loggedIn;
+  elements.currentAccountText.textContent = loggedIn ? `ログイン中: ${authState.user.email}` : "未ログイン";
+  elements.currentDogNameText.textContent = `犬の名前: ${settings.dogName || defaultSettings.dogName}`;
+}
+
+function applySettingsToForm() {
+  elements.settingDogName.value = settings.dogName;
+  elements.currentDogNameText.textContent = `犬の名前: ${settings.dogName || defaultSettings.dogName}`;
+}
+
+async function saveSettingsFromForm(event) {
+  event.preventDefault();
+  settings.dogName = elements.settingDogName.value.trim() || defaultSettings.dogName;
+  saveLocalSettings();
+  if (authState.user) {
+    const saved = await saveDogProfile(settings.dogName);
+    elements.runStatusText.textContent = saved ? "犬の名前を保存しました" : "犬の名前を端末に一時保存しました";
+    elements.settingsSaveMessage.textContent = saved ? "保存できました" : "端末に一時保存しました";
+  } else {
+    updateAccountUi("未ログインのため、犬の名前はこの端末に一時保存しました。", "is-warn");
+    elements.runStatusText.textContent = "犬の名前を端末に一時保存しました";
+    elements.settingsSaveMessage.textContent = "保存できました";
+  }
+  applySettingsToForm();
+}
+
+function saveLocalSettings() {
+  localStorage.setItem("watch-system-settings", JSON.stringify({ dogName: settings.dogName }));
+}
+
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("watch-system-settings")) || {};
+    return {
+      dogName: saved.dogName || defaultSettings.dogName,
+    };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function setCheck(dot, textElement, status, message) {
+  dot.classList.remove("is-ok", "is-warn", "is-bad");
+  dot.classList.add(status);
+  textElement.textContent = message;
+}
+
+function checkBrowser() {
+  const secure = window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const media = Boolean(navigator.mediaDevices?.getUserMedia);
+
+  if (secure && media) {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-ok", "カメラとマイクを使えるブラウザです");
+  } else if (media) {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-warn", "HTTPSまたはlocalhostで開くと安定します");
+  } else {
+    setCheck(elements.browserDot, elements.browserCheckText, "is-bad", "このブラウザではカメラやマイクを使えません");
+  }
+}
+
+async function checkCamera() {
+  setCheck(elements.cameraDot, elements.cameraCheckText, "is-warn", "確認中です");
 
   try {
-    await startCamera();
-    state.running = true;
-    loadingState.textContent = "人物検知モデルを読み込み中";
-    await loadModel();
-    loadingState.textContent = "人物を探しています";
-    detectLoop();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    stopStream(stream);
+    setCheck(elements.cameraDot, elements.cameraCheckText, "is-ok", "カメラを利用できます");
   } catch (error) {
-    startButton.disabled = false;
-    loadingState.textContent = "開始できませんでした";
-    directionText.textContent = error.message || "カメラの許可を確認してください";
+    setCheck(elements.cameraDot, elements.cameraCheckText, "is-bad", getMediaErrorMessage(error, "カメラ"));
   }
+}
+
+async function checkModel() {
+  setCheck(elements.modelDot, elements.modelCheckText, "is-warn", "人物検出モデルを読み込み中です");
+
+  try {
+    await loadModel();
+    setCheck(elements.modelDot, elements.modelCheckText, "is-ok", "人物検出モデルを利用できます");
+  } catch {
+    setCheck(elements.modelDot, elements.modelCheckText, "is-bad", "人物検出モデルを読み込めません。通信状態を確認してください");
+  }
+}
+
+async function checkMic() {
+  setCheck(elements.micDot, elements.micCheckText, "is-warn", "確認中です");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    stopStream(stream);
+    setCheck(elements.micDot, elements.micCheckText, "is-ok", "マイクを利用できます");
+  } catch (error) {
+    setCheck(elements.micDot, elements.micCheckText, "is-bad", getMediaErrorMessage(error, "マイク"));
+  }
+}
+
+function checkSpeech() {
+  if (speechState.supported) {
+    setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "名前を呼ぶ確認を開始しました");
+    elements.checkTranscriptText.textContent = "聞き取り中です";
+    startHiddenTranscription();
+    startVolumeMeter();
+  } else {
+    setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "このブラウザは音声認識に未対応です");
+  }
+}
+
+function checkBark() {
+  if (typeof Audio !== "function" && !ensureBarkAudio()) {
+    setCheck(elements.barkDot, elements.barkCheckText, "is-bad", "このブラウザでは音を再生できません");
+    return;
+  }
+
+  bark(1);
+  setCheck(elements.barkDot, elements.barkCheckText, "is-ok", "犬の鳴き声音声を再生しました");
+}
+
+async function checkBluetooth() {
+  setCheck(elements.bluetoothDot, elements.bluetoothCheckText, "is-warn", "本体と接続中です");
+
+  try {
+    const bluetooth = await navigator.bluetooth.requestDevice({ filters: [{ name: 'NimBLE_GATT' }], optionalServices: ['heart_rate'] });
+    setCheck(elements.bluetoothDot, elements.bluetoothCheckText, "is-ok", "本体との通信を確認しました");
+  } catch {
+    setCheck(elements.bluetoothDot, elements.bluetoothCheckText, "is-bad", "本体との通信を確認できません。bluetooth接続を確認してください");
+  }
+}
+
+async function runAllChecks() {
+  elements.runAllChecksButton.disabled = true;
+  checkBrowser();
+  await checkCamera();
+  await checkModel();
+  await checkMic();
+  checkBark();
+  checkSpeech();
+  await checkBluetooth();
+  elements.runAllChecksButton.disabled = false;
+}
+
+function getMediaErrorMessage(error, label) {
+  if (error?.name === "NotAllowedError") return `${label}の使用が許可されていません`;
+  if (error?.name === "NotFoundError") return `${label}が見つかりません`;
+  return `${label}を開始できませんでした`;
+}
+
+async function startRun() {
+  elements.startRunButton.disabled = true;
+  elements.runStatusText.textContent = "カメラを起動しています";
+  ensureBarkAudio();
+
+  try {
+    if (runState.running) stopRun();
+    runState.running = true;
+    updateRunningViewMode();
+    resetEyeTracking();
+    wakeEyes();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+
+    runState.stream = stream;
+    elements.video.srcObject = stream;
+    await elements.video.play();
+    elements.runStatusText.textContent = "人物検出モデルを読み込んでいます";
+    const detectionReady = await prepareDetection();
+    updateRunningViewMode();
+    elements.stopRunButton.disabled = false;
+    elements.runStatusText.textContent = detectionReady ? "人物を探しています" : "目だけを表示しています";
+    startHiddenTranscription();
+    if (detectionReady) {
+      detectLoop();
+    } else {
+      wakeEyes();
+    }
+  } catch (error) {
+    stopStream(runState.stream);
+    runState.stream = null;
+    elements.video.srcObject = null;
+    updateRunningViewMode();
+    elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
+    elements.stopRunButton.disabled = false;
+    wakeEyes();
+  }
+}
+
+function stopRun() {
+  runState.running = false;
+  runState.detecting = false;
+  stopHiddenTranscription();
+  if (runState.rafId) cancelAnimationFrame(runState.rafId);
+  stopStream(runState.stream);
+  runState.stream = null;
+  elements.video.srcObject = null;
+  updateRunningViewMode();
+  runState.trackedCenter = null;
+  runState.coveredFrames = 0;
+  elements.startRunButton.disabled = false;
+  elements.stopRunButton.disabled = true;
+  elements.personCountText.textContent = "0";
+  elements.directionText.textContent = "停止中";
+  elements.confidenceText.textContent = "--";
+  elements.runStatusText.textContent = "停止しました";
+  sleepEyes();
+}
+
+function stopStream(stream) {
+  stream?.getTracks().forEach((track) => track.stop());
 }
 
 async function loadModel() {
-  if (state.model) return;
+  if (runState.model) return;
   if (!window.cocoSsd) {
-    throw new Error("人物検知モデルを読み込めませんでした。通信状態を確認してください。");
+    throw new Error("人物検出モデルを読み込めませんでした");
   }
-  state.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
+  runState.model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
 }
 
-async function startCamera() {
-  stopCamera();
-
-  const constraints = {
-    audio: false,
-    video: {
-      facingMode: "user",
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
-  };
-
-  state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-  video.srcObject = state.stream;
-  await video.play();
-  updateMirrorMode();
-  resizeOverlay();
-}
-
-function stopCamera() {
-  if (state.stream) {
-    state.stream.getTracks().forEach((track) => track.stop());
+async function prepareDetection() {
+  try {
+    await loadModel();
+  } catch (error) {
+    console.warn(error);
+    runState.model = null;
+    return false;
   }
-  state.stream = null;
+
+  try {
+    await loadFaceDetector();
+  } catch (error) {
+    console.warn(error);
+    runState.faceDetector = null;
+  }
+
+  return true;
 }
 
-function updateMirrorMode() {
-  video.classList.toggle("mirrored", mirrorToggle.checked);
-  overlay.classList.toggle("mirrored", mirrorToggle.checked);
+async function loadFaceDetector() {
+  if (runState.faceDetector) return;
+  if (!window.faceDetection) return;
+
+  const model = window.faceDetection.SupportedModels.MediaPipeFaceDetector;
+  runState.faceDetector = await window.faceDetection.createDetector(model, {
+    runtime: "tfjs",
+    maxFaces: 8,
+  });
 }
 
 function resizeOverlay() {
   const scale = window.devicePixelRatio || 1;
-  const width = video.videoWidth || window.innerWidth;
-  const height = video.videoHeight || window.innerHeight;
-  overlay.width = Math.max(1, Math.round(width * scale));
-  overlay.height = Math.max(1, Math.round(height * scale));
+  const width = elements.video.videoWidth || elements.overlay.clientWidth || 1;
+  const height = elements.video.videoHeight || elements.overlay.clientHeight || 1;
+  elements.overlay.width = Math.max(1, Math.round(width * scale));
+  elements.overlay.height = Math.max(1, Math.round(height * scale));
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
 async function detectLoop() {
-  if (!state.running || state.detecting) return;
-  state.detecting = true;
+  if (!runState.running || runState.detecting) return;
+  runState.detecting = true;
 
   try {
-    const predictions = await state.model.detect(video);
-    renderDetections(predictions);
-  } catch (error) {
-    loadingState.textContent = "検知でエラーが発生しました";
+    resizeOverlay();
+    const predictions = await runState.model.detect(elements.video);
+    const faces = runState.faceDetector
+      ? await runState.faceDetector.estimateFaces(elements.video, { flipHorizontal: false })
+      : [];
+    renderDetections(predictions, faces);
+  } catch {
+    elements.runStatusText.textContent = "検出中にエラーが発生しました";
   } finally {
-    state.detecting = false;
-    state.rafId = requestAnimationFrame(detectLoop);
+    runState.detecting = false;
+    if (runState.running) runState.rafId = requestAnimationFrame(detectLoop);
   }
 }
 
-function renderDetections(predictions) {
-  resizeOverlay();
-  const frameWidth = video.videoWidth || overlay.width;
-  const frameHeight = video.videoHeight || overlay.height;
-  ctx.clearRect(0, 0, frameWidth, frameHeight);
-
+function renderDetections(predictions, faces = []) {
+  const frameWidth = elements.video.videoWidth || elements.overlay.width;
+  const frameHeight = elements.video.videoHeight || elements.overlay.height;
+  const minScore = 0.45;
   const people = predictions
-    .filter((item) => item.class === "person" && item.score >= PERSON_SCORE_MIN)
+    .filter((item) => item.class === "person" && item.score >= minScore)
     .sort((a, b) => b.score - a.score);
 
-  personCountText.textContent = String(people.length);
+  elements.personCountText.textContent = String(people.length);
 
-  if (people.length === 0) {
+  if (!people.length) {
+    runState.trackedCenter = null;
+    runState.coveredFrames = 0;
     sleepEyes();
     updateEyeTracking(0, 0);
-    loadingState.textContent = "人物を探しています";
-    offsetText.textContent = "--%";
-    xOffsetText.textContent = "--%";
-    yOffsetText.textContent = "--%";
-    directionText.textContent = "人物が画面に入るとズレを表示します";
-    xDirectionText.textContent = "--";
-    yDirectionText.textContent = "--";
-    confidenceText.textContent = "信頼度 --";
+    elements.runStatusText.textContent = "人物を探しています";
+    elements.directionText.textContent = "未検出";
+    elements.confidenceText.textContent = "--";
     return;
   }
 
-  loadingState.textContent = "";
   wakeEyes();
-  const mainPerson = people[0];
+  const mainPerson = chooseTrackedPerson(people, faces, frameWidth, frameHeight);
   const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
+  elements.runStatusText.textContent = "検出中";
+  elements.directionText.textContent = getDirectionLabel(metrics);
+  elements.confidenceText.textContent = `${Math.round(mainPerson.score * 100)}%`;
+}
 
-  offsetText.textContent = `${metrics.total}%`;
-  xOffsetText.textContent = `${Math.abs(metrics.x)}%`;
-  yOffsetText.textContent = `${Math.abs(metrics.y)}%`;
-  xDirectionText.textContent = metrics.x === 0 ? "中央" : metrics.x > 0 ? "右にズレ" : "左にズレ";
-  yDirectionText.textContent = metrics.y === 0 ? "中央" : metrics.y > 0 ? "下にズレ" : "上にズレ";
-  directionText.textContent = getDirectionLabel(metrics);
-  confidenceText.textContent = `信頼度 ${Math.round(mainPerson.score * 100)}%`;
+function chooseTrackedPerson(people, faces, frameWidth, frameHeight) {
+  const enrichedPeople = people.map((person) => ({
+    person,
+    center: getBoxCenter(person.bbox),
+    hasFace: personHasVisibleFace(person.bbox, faces),
+  }));
+
+  const current = findCurrentTrackedPerson(enrichedPeople);
+  if (current) {
+    runState.coveredFrames = current.hasFace ? 0 : runState.coveredFrames + 1;
+    if (runState.coveredFrames < FACE_COVER_SWITCH_FRAMES || enrichedPeople.length === 1) {
+      runState.trackedCenter = current.center;
+      return current.person;
+    }
+  }
+
+  const candidates = enrichedPeople.filter((item) => item.hasFace);
+  const next = chooseBestCandidate(candidates.length ? candidates : enrichedPeople, frameWidth, frameHeight);
+  runState.trackedCenter = next.center;
+  runState.coveredFrames = 0;
+  return next.person;
+}
+
+function findCurrentTrackedPerson(enrichedPeople) {
+  if (!runState.trackedCenter) return null;
+
+  return enrichedPeople
+    .map((item) => ({
+      ...item,
+      distance: Math.hypot(item.center.x - runState.trackedCenter.x, item.center.y - runState.trackedCenter.y),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0] || null;
+}
+
+function chooseBestCandidate(candidates, frameWidth, frameHeight) {
+  const frameCenter = { x: frameWidth / 2, y: frameHeight / 2 };
+  return candidates
+    .map((item) => {
+      const centerDistance = Math.hypot(item.center.x - frameCenter.x, item.center.y - frameCenter.y);
+      const normalizedDistance = centerDistance / Math.hypot(frameCenter.x, frameCenter.y);
+      const faceBonus = item.hasFace ? 0.28 : 0;
+      const score = item.person.score + faceBonus - normalizedDistance * 0.18;
+      return { ...item, score };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+}
+
+function personHasVisibleFace([personX, personY, personWidth, personHeight], faces) {
+  const headArea = {
+    x: personX,
+    y: personY,
+    width: personWidth,
+    height: personHeight * 0.45,
+  };
+
+  return faces.some((face) => {
+    const box = face.box || {};
+    const faceBox = {
+      x: box.xMin ?? box.x ?? 0,
+      y: box.yMin ?? box.y ?? 0,
+      width: box.width ?? Math.max(0, (box.xMax ?? 0) - (box.xMin ?? 0)),
+      height: box.height ?? Math.max(0, (box.yMax ?? 0) - (box.yMin ?? 0)),
+    };
+    return getIntersectionRatio(headArea, faceBox) > 0.12;
+  });
+}
+
+function getBoxCenter([x, y, width, height]) {
+  return {
+    x: x + width / 2,
+    y: y + height / 2,
+  };
+}
+
+function getIntersectionRatio(a, b) {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  const width = Math.max(0, right - left);
+  const height = Math.max(0, bottom - top);
+  const intersection = width * height;
+  const bArea = Math.max(1, b.width * b.height);
+  return intersection / bArea;
 }
 
 function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
   const personCenterX = x + width / 2;
   const personCenterY = y + height / 2;
   const rawX = ((personCenterX - sourceWidth / 2) / (sourceWidth / 2)) * 100;
-  const normalizedX = mirrorToggle.checked ? -rawX : rawX;
+  const normalizedX = -rawX;
   const normalizedY = ((personCenterY - sourceHeight / 2) / (sourceHeight / 2)) * 100;
   const total = Math.hypot(normalizedX, normalizedY);
 
@@ -174,22 +791,24 @@ function getOffsetMetrics([x, y, width, height], sourceWidth, sourceHeight) {
 }
 
 function getDirectionLabel(metrics) {
-  if (metrics.total <= 5) return "ほぼ中央です";
-
+  if (metrics.total <= 5) return "ほぼ中央";
   const horizontal = Math.abs(metrics.x) <= 5 ? "" : metrics.x > 0 ? "右" : "左";
   const vertical = Math.abs(metrics.y) <= 5 ? "" : metrics.y > 0 ? "下" : "上";
-  return `${vertical}${horizontal}へ${metrics.total}%ズレています`;
+  return `${vertical}${horizontal}へ${metrics.total}%`;
 }
 
 function updateEyeTracking(xPercent, yPercent) {
   const targetX = clamp(xPercent / 100, -1, 1) * EYE_RANGE_X;
   const targetY = clamp(yPercent / 100, -1, 1) * EYE_RANGE_Y;
-  state.eyeX = state.eyeX * 0.72 + targetX * 0.28;
-  state.eyeY = state.eyeY * 0.72 + targetY * 0.28;
+  runState.eyeX = runState.eyeX * (1 - EYE_TRACKING_RESPONSE) + targetX * EYE_TRACKING_RESPONSE;
+  runState.eyeY = runState.eyeY * (1 - EYE_TRACKING_RESPONSE) + targetY * EYE_TRACKING_RESPONSE;
+  elements.pupilGroup.setAttribute("transform", `translate(${runState.eyeX.toFixed(1)} ${runState.eyeY.toFixed(1)})`);
+}
 
-  dogEyes.style.setProperty("--look-x", `${state.eyeX.toFixed(1)}px`);
-  dogEyes.style.setProperty("--look-y", `${state.eyeY.toFixed(1)}px`);
-  pupilGroup.setAttribute("transform", `translate(${state.eyeX.toFixed(1)} ${state.eyeY.toFixed(1)})`);
+function resetEyeTracking() {
+  runState.eyeX = 0;
+  runState.eyeY = 0;
+  elements.pupilGroup.setAttribute("transform", "translate(0 0)");
 }
 
 function scheduleBlink() {
@@ -201,23 +820,367 @@ function scheduleBlink() {
 }
 
 function blinkEyes() {
-  if (state.sleeping) return;
-  dogEyes.classList.add("is-blinking");
-  setTimeout(() => dogEyes.classList.remove("is-blinking"), 130);
+  if (runState.sleeping) return;
+  elements.dogEyes.classList.add("is-blinking");
+  setTimeout(() => elements.dogEyes.classList.remove("is-blinking"), 190);
 }
 
 function sleepEyes() {
-  if (state.sleeping) return;
-  state.sleeping = true;
-  dogEyes.classList.remove("is-blinking");
-  dogEyes.classList.add("is-sleeping");
+  if (runState.sleeping) return;
+  runState.sleeping = true;
+  elements.dogEyes.classList.remove("is-blinking");
+  elements.dogEyes.classList.add("is-sleeping");
 }
 
 function wakeEyes() {
-  if (!state.sleeping) return;
-  state.sleeping = false;
-  dogEyes.classList.remove("is-sleeping");
+  if (!runState.sleeping) return;
+  runState.sleeping = false;
+  elements.dogEyes.classList.remove("is-sleeping");
   blinkEyes();
+}
+
+function setupTranscription() {
+  if (!speechState.supported) {
+    elements.transcribeButton.disabled = true;
+    elements.transcriptionStatus.textContent = "未対応";
+    return;
+  }
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new Recognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "ja-JP";
+
+  recognition.addEventListener("start", () => {
+    speechState.listening = true;
+    elements.transcriptionStatus.textContent = "聞き取り中";
+    elements.transcribeButton.textContent = "停止";
+  });
+
+  recognition.addEventListener("result", (event) => {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const piece = event.results[i][0]?.transcript || "";
+      if (event.results[i].isFinal) {
+        const finalPiece = piece.trim();
+        speechState.finalText += `${finalPiece}\n`;
+        handleVoiceCommand(finalPiece);
+      } else {
+        interim += piece;
+      }
+    }
+    speechState.interimText = interim.trim();
+    renderTranscript();
+  });
+
+  recognition.addEventListener("end", () => {
+    speechState.listening = false;
+    speechState.interimText = "";
+    elements.transcriptionStatus.textContent = elements.transcriptText.value.trim() ? "停止中" : "待機中";
+    elements.transcribeButton.textContent = "文字起こし開始";
+    renderTranscript();
+    if (speechState.shouldListen) {
+      window.setTimeout(startHiddenTranscription, 450);
+    }
+  });
+
+  recognition.addEventListener("error", (event) => {
+    speechState.listening = false;
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      speechState.shouldListen = false;
+      setCheck(elements.speechDot, elements.speechCheckText, "is-bad", "マイクまたは音声認識が許可されていません");
+      stopVolumeMeter();
+    } else {
+      setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "音声認識を開始できませんでした");
+    }
+    elements.transcriptionStatus.textContent = event.error === "not-allowed" ? "権限なし" : "エラー";
+    elements.transcribeButton.textContent = "文字起こし開始";
+  });
+
+  speechState.recognition = recognition;
+}
+
+function toggleTranscription() {
+  if (!speechState.recognition) return;
+  if (speechState.listening) {
+    speechState.recognition.stop();
+    return;
+  }
+
+  speechState.recognition.lang = "ja-JP";
+  try {
+    speechState.recognition.start();
+  } catch {
+    elements.transcriptionStatus.textContent = "起動待ち";
+  }
+}
+
+function startHiddenTranscription() {
+  if (!speechState.recognition || speechState.listening) return;
+  speechState.shouldListen = true;
+  speechState.recognition.lang = "ja-JP";
+  ensureBarkAudio();
+  setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "聞き取り中です。名前を呼ぶと鳴きます");
+
+  try {
+    speechState.recognition.start();
+  } catch {
+    elements.transcriptionStatus.textContent = "起動待ち";
+  }
+}
+
+function stopHiddenTranscription() {
+  speechState.shouldListen = false;
+  if (speechState.recognition && speechState.listening) {
+    speechState.recognition.stop();
+  }
+}
+
+async function startVolumeMeter() {
+  if (speechState.volumeAnalyser) return;
+
+  try {
+    speechState.volumeStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    speechState.volumeAudioContext = new AudioContext();
+    const source = speechState.volumeAudioContext.createMediaStreamSource(speechState.volumeStream);
+    speechState.volumeAnalyser = speechState.volumeAudioContext.createAnalyser();
+    speechState.volumeAnalyser.fftSize = 1024;
+    speechState.volumeData = new Uint8Array(speechState.volumeAnalyser.fftSize);
+    source.connect(speechState.volumeAnalyser);
+    updateVolumeMeter();
+  } catch {
+    elements.volumeText.textContent = "--";
+    elements.volumeBar.style.width = "0%";
+    setCheck(elements.micDot, elements.micCheckText, "is-bad", "マイク音量を取得できません");
+  }
+}
+
+function stopVolumeMeter() {
+  if (speechState.volumeRafId) cancelAnimationFrame(speechState.volumeRafId);
+  speechState.volumeRafId = null;
+  speechState.volumeStream?.getTracks().forEach((track) => track.stop());
+  speechState.volumeStream = null;
+  speechState.volumeAudioContext?.close?.().catch(() => {});
+  speechState.volumeAudioContext = null;
+  speechState.volumeAnalyser = null;
+  speechState.volumeData = null;
+  elements.volumeText.textContent = "0%";
+  elements.volumeBar.style.width = "0%";
+}
+
+function updateVolumeMeter() {
+  if (!speechState.volumeAnalyser || !speechState.volumeData) return;
+
+  speechState.volumeAnalyser.getByteTimeDomainData(speechState.volumeData);
+  let sum = 0;
+  for (const value of speechState.volumeData) {
+    const normalized = (value - 128) / 128;
+    sum += normalized * normalized;
+  }
+
+  const rms = Math.sqrt(sum / speechState.volumeData.length);
+  const percent = Math.min(100, Math.round(rms * 260));
+  elements.volumeText.textContent = `${percent}%`;
+  elements.volumeBar.style.width = `${percent}%`;
+  speechState.volumeRafId = requestAnimationFrame(updateVolumeMeter);
+}
+
+function handleVoiceCommand(text) {
+  const dogName = normalizeSpeech(settings.dogName || defaultSettings.dogName);
+  const heard = normalizeSpeech(text);
+  if (!dogName || !heard.includes(dogName)) return;
+
+  const barkCount = heard.includes("おいで") ? 2 : 1;
+  const commandKey = `${barkCount}:${heard}`;
+  const now = Date.now();
+  if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 1800) return;
+
+  speechState.lastCommandKey = commandKey;
+  speechState.lastCommandAt = now;
+  bark(barkCount);
+}
+
+function normalizeSpeech(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[\\s　、。,.!！?？「」『』"']/g, "");
+}
+
+function ensureBarkAudio() {
+  if (!speechState.audioContext) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+    speechState.audioContext = new AudioContext();
+  }
+
+  if (speechState.audioContext.state === "suspended") {
+    speechState.audioContext.resume().catch(() => {});
+  }
+
+  return speechState.audioContext;
+}
+
+function bark(count) {
+  for (let index = 0; index < count; index += 1) {
+    window.setTimeout(playBarkSample, index * 360);
+  }
+}
+
+function playBarkSample() {
+  if (typeof Audio !== "function") {
+    playSyntheticBark();
+    return;
+  }
+
+  const audio = new Audio(BARK_AUDIO_SRC);
+  audio.preload = "auto";
+  audio.volume = 0.95;
+  audio.play().catch(() => {
+    playSyntheticBark();
+  });
+}
+
+function playSyntheticBark() {
+  const audioContext = ensureBarkAudio();
+  if (!audioContext) return;
+
+  const now = audioContext.currentTime;
+  const duration = 0.32;
+  const output = audioContext.createGain();
+  const compressor = audioContext.createDynamicsCompressor();
+
+  compressor.threshold.setValueAtTime(-22, now);
+  compressor.knee.setValueAtTime(14, now);
+  compressor.ratio.setValueAtTime(8, now);
+  compressor.attack.setValueAtTime(0.006, now);
+  compressor.release.setValueAtTime(0.13, now);
+
+  output.gain.setValueAtTime(0.0001, now);
+  output.gain.exponentialRampToValueAtTime(0.78, now + 0.018);
+  output.gain.exponentialRampToValueAtTime(0.42, now + 0.105);
+  output.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  output.connect(compressor);
+  compressor.connect(audioContext.destination);
+
+  playBarkNoise(audioContext, output, now, duration);
+  playBarkVoice(audioContext, output, now, duration);
+}
+
+function playBarkVoice(audioContext, destination, startTime, duration) {
+  const voiceGain = audioContext.createGain();
+  const growlGain = audioContext.createGain();
+  const chest = audioContext.createOscillator();
+  const voice = audioContext.createOscillator();
+  const bite = audioContext.createOscillator();
+  const throat = audioContext.createBiquadFilter();
+  const mouth = audioContext.createBiquadFilter();
+
+  throat.type = "bandpass";
+  throat.frequency.setValueAtTime(360, startTime);
+  throat.frequency.exponentialRampToValueAtTime(220, startTime + duration);
+  throat.Q.setValueAtTime(3.2, startTime);
+
+  mouth.type = "bandpass";
+  mouth.frequency.setValueAtTime(920, startTime);
+  mouth.frequency.exponentialRampToValueAtTime(610, startTime + duration);
+  mouth.Q.setValueAtTime(2.2, startTime);
+
+  chest.type = "sawtooth";
+  chest.frequency.setValueAtTime(155, startTime);
+  chest.frequency.exponentialRampToValueAtTime(82, startTime + duration);
+
+  voice.type = "triangle";
+  voice.frequency.setValueAtTime(540, startTime);
+  voice.frequency.exponentialRampToValueAtTime(260, startTime + duration);
+
+  bite.type = "square";
+  bite.frequency.setValueAtTime(980, startTime);
+  bite.frequency.exponentialRampToValueAtTime(430, startTime + 0.15);
+
+  growlGain.gain.setValueAtTime(0.0001, startTime);
+  growlGain.gain.exponentialRampToValueAtTime(0.24, startTime + 0.018);
+  growlGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  voiceGain.gain.setValueAtTime(0.0001, startTime);
+  voiceGain.gain.exponentialRampToValueAtTime(0.36, startTime + 0.026);
+  voiceGain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.13);
+  voiceGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  chest.connect(throat);
+  throat.connect(growlGain);
+  growlGain.connect(destination);
+
+  voice.connect(mouth);
+  bite.connect(mouth);
+  mouth.connect(voiceGain);
+  voiceGain.connect(destination);
+
+  [chest, voice, bite].forEach((oscillator) => {
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.03);
+  });
+}
+
+function playBarkNoise(audioContext, destination, startTime, duration) {
+  const noise = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
+  const lowpass = audioContext.createBiquadFilter();
+  const noiseGain = audioContext.createGain();
+
+  noise.buffer = getBarkNoiseBuffer(audioContext);
+  noise.playbackRate.setValueAtTime(0.92 + Math.random() * 0.14, startTime);
+
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(760, startTime);
+  filter.frequency.exponentialRampToValueAtTime(430, startTime + duration);
+  filter.Q.setValueAtTime(1.4, startTime);
+
+  lowpass.type = "lowpass";
+  lowpass.frequency.setValueAtTime(1650, startTime);
+  lowpass.frequency.exponentialRampToValueAtTime(880, startTime + duration);
+  lowpass.Q.setValueAtTime(0.8, startTime);
+
+  noiseGain.gain.setValueAtTime(0.0001, startTime);
+  noiseGain.gain.exponentialRampToValueAtTime(0.5, startTime + 0.012);
+  noiseGain.gain.exponentialRampToValueAtTime(0.16, startTime + 0.11);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  noise.connect(filter);
+  filter.connect(lowpass);
+  lowpass.connect(noiseGain);
+  noiseGain.connect(destination);
+  noise.start(startTime);
+  noise.stop(startTime + duration + 0.04);
+}
+
+function getBarkNoiseBuffer(audioContext) {
+  if (speechState.barkNoiseBuffer) return speechState.barkNoiseBuffer;
+
+  const length = Math.floor(audioContext.sampleRate * 0.38);
+  const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+  const data = buffer.getChannelData(0);
+  let previous = 0;
+
+  for (let index = 0; index < length; index += 1) {
+    const white = Math.random() * 2 - 1;
+    previous = previous * 0.74 + white * 0.26;
+    const envelope = 1 - index / length;
+    data[index] = previous * envelope;
+  }
+
+  speechState.barkNoiseBuffer = buffer;
+  return buffer;
+}
+
+function renderTranscript() {
+  const divider = speechState.finalText && speechState.interimText ? "\n" : "";
+  const transcript = `${speechState.finalText}${divider}${speechState.interimText}`.trimStart();
+  elements.transcriptText.value = transcript;
+  elements.transcriptText.scrollTop = elements.transcriptText.scrollHeight;
+  elements.checkTranscriptText.textContent = transcript.trim() || "聞き取り中です";
 }
 
 function clamp(value, min, max) {
@@ -225,5 +1188,7 @@ function clamp(value, min, max) {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  navigator.serviceWorker.getRegistration("./").then((registration) => {
+    if (registration) registration.unregister();
+  });
 }
