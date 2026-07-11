@@ -138,6 +138,9 @@ const ABSENCE_SADNESS_DELAY_MS = 30000;
 const ABSENCE_SLEEP_DELAY_MS = 180000;
 const TWO_METERS_PERSON_HEIGHT_RATIO = 0.42;
 const TWO_METERS_FACE_HEIGHT_RATIO = 0.11;
+const MIN_VISIBLE_PERSON_SCORE = 0.62;
+const MIN_VISIBLE_FACE_SCORE = 0.65;
+const MIN_VISIBLE_FACE_HEIGHT_RATIO = 0.045;
 
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
@@ -629,6 +632,7 @@ async function startRun() {
     updateRunningViewMode();
     elements.runStatusText.textContent = getMediaErrorMessage(error, "カメラ");
     elements.stopRunButton.disabled = false;
+    markPersonAbsent();
     wakeEyes();
   }
 }
@@ -730,17 +734,17 @@ async function detectLoop() {
 function renderDetections(predictions, faces = []) {
   const frameWidth = elements.video.videoWidth || elements.overlay.width;
   const frameHeight = elements.video.videoHeight || elements.overlay.height;
-  const minScore = 0.45;
   const people = predictions
-    .filter((item) => item.class === "person" && item.score >= minScore)
+    .filter((item) => item.class === "person" && item.score >= MIN_VISIBLE_PERSON_SCORE)
     .sort((a, b) => b.score - a.score);
+  const visibleFaces = faces.filter((face) => isVisibleFace(face, frameHeight));
 
   elements.personCountText.textContent = String(people.length);
 
   if (!people.length) {
-    if (faces.length) {
+    if (visibleFaces.length) {
       wakeEyes();
-      const mainFace = chooseTrackedFace(faces, frameWidth, frameHeight);
+      const mainFace = chooseTrackedFace(visibleFaces, frameWidth, frameHeight);
       if (!mainFace) {
         updateEyeTracking(0, 0);
         return;
@@ -748,7 +752,7 @@ function renderDetections(predictions, faces = []) {
       const metrics = getOffsetMetrics(mainFace.bbox, frameWidth, frameHeight);
       updateEyeTracking(metrics.x, metrics.y);
       markPersonPresent(mainFace.bbox, frameHeight, "face");
-      elements.personCountText.textContent = String(faces.length);
+      elements.personCountText.textContent = String(visibleFaces.length);
       elements.runStatusText.textContent = "顔を追従中";
       elements.directionText.textContent = getDirectionLabel(metrics);
       elements.confidenceText.textContent = "--";
@@ -767,7 +771,7 @@ function renderDetections(predictions, faces = []) {
   }
 
   wakeEyes();
-  const mainPerson = chooseTrackedPerson(people, faces, frameWidth, frameHeight);
+  const mainPerson = chooseTrackedPerson(people, visibleFaces, frameWidth, frameHeight);
   const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
   markPersonPresent(mainPerson.bbox, frameHeight, "person");
@@ -826,6 +830,13 @@ function getFaceBbox(face) {
   const width = box.width ?? Math.max(0, (box.xMax ?? 0) - x);
   const height = box.height ?? Math.max(0, (box.yMax ?? 0) - y);
   return [x, y, width, height];
+}
+
+function isVisibleFace(face, frameHeight) {
+  const bbox = getFaceBbox(face);
+  const score = Array.isArray(face.score) ? face.score[0] : face.score;
+  const confidence = Number.isFinite(score) ? score : 1;
+  return confidence >= MIN_VISIBLE_FACE_SCORE && bbox[3] / Math.max(1, frameHeight) >= MIN_VISIBLE_FACE_HEIGHT_RATIO;
 }
 
 function chooseTrackedPerson(people, faces, frameWidth, frameHeight) {

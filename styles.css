@@ -1032,16 +1032,23 @@ body.is-running-page .dog-eyes,
 }
 
 .dog-eyes.is-emotion-sad .eye-brow {
-  stroke: #6b9fc9;
-  opacity: 0.68;
+  stroke: #4e7596;
+  opacity: 0.56;
+  transform: translateY(8px) scaleY(0.78);
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .dog-eyes.is-emotion-sad .eye-aura {
-  opacity: 0.3;
+  opacity: 0.16;
 }
 
 .dog-eyes.is-emotion-sad .iris {
-  opacity: 0.78;
+  opacity: 0.52;
+}
+
+.dog-eyes.is-emotion-sad .eye-shell {
+  opacity: 0.68;
 }
 
 @keyframes voice-emotion-pulse {
