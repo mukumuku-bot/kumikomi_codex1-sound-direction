@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101828" />
+    <title>目の表情テスト</title>
+    <link rel="stylesheet" href="../styles.css?v=eye-expression-1" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="test-header">
+      <a href="../">← トップへ戻る</a>
+      <strong>目の表情テスト</strong>
+    </header>
+
+    <main class="eye-test">
+      <section class="eye-stage" aria-label="表情を確認する目">
+        <svg id="dogEyes" class="dog-eyes" viewBox="20 24 340 180" role="img" aria-label="表情テスト用の目" data-expression="happy">
+          <defs>
+            <radialGradient id="irisGlow" cx="42%" cy="38%" r="68%">
+              <stop offset="0%" stop-color="#f7fdff" />
+              <stop offset="34%" stop-color="#58c9ff" />
+              <stop offset="68%" stop-color="#3478ff" />
+              <stop offset="100%" stop-color="#10236b" />
+            </radialGradient>
+            <radialGradient id="pupilGlow" cx="42%" cy="34%" r="70%">
+              <stop offset="0%" stop-color="#1a3342" />
+              <stop offset="58%" stop-color="#061019" />
+              <stop offset="100%" stop-color="#02070d" />
+            </radialGradient>
+            <linearGradient id="lidShade" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#182538" />
+              <stop offset="100%" stop-color="#07101d" />
+            </linearGradient>
+            <filter id="blueEyeGlow" x="-55%" y="-55%" width="210%" height="210%">
+              <feGaussianBlur stdDeviation="4.5" result="blur" />
+              <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.24 0 0 0 0 0.68 0 0 0 0 1 0 0 0 0.92 0" result="glow" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <g class="eye-brows">
+            <path class="eye-brow left-brow" d="M63 72 Q105 43 147 72" />
+            <path class="eye-brow right-brow" d="M233 72 Q275 43 317 72" />
+          </g>
+          <g class="sad-brows" aria-hidden="true">
+            <path class="sad-brow" d="M63 86 Q105 64 147 74" />
+            <path class="sad-brow" d="M233 74 Q275 64 317 86" />
+          </g>
+
+          <g class="eye-shell">
+            <ellipse class="eye-aura" cx="105" cy="124" rx="58" ry="64" />
+            <ellipse class="eye-aura" cx="275" cy="124" rx="58" ry="64" />
+            <ellipse class="eye-rim" cx="105" cy="124" rx="42" ry="48" />
+            <ellipse class="eye-rim" cx="275" cy="124" rx="42" ry="48" />
+          </g>
+
+          <g class="eye-orbs">
+            <circle class="iris" cx="105" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+            <circle class="iris-line" cx="105" cy="124" r="33" />
+            <circle class="iris" cx="275" cy="124" r="42" fill="url(#irisGlow)" filter="url(#blueEyeGlow)" />
+            <circle class="iris-line" cx="275" cy="124" r="33" />
+          </g>
+
+          <g id="pupilGroup">
+            <circle class="pupil" cx="105" cy="124" r="24" fill="url(#pupilGlow)" />
+            <circle class="catchlight main" cx="91" cy="103" r="9" />
+            <circle class="catchlight sub" cx="122" cy="113" r="5" />
+            <circle class="pupil" cx="275" cy="124" r="24" fill="url(#pupilGlow)" />
+            <circle class="catchlight main" cx="261" cy="103" r="9" />
+            <circle class="catchlight sub" cx="292" cy="113" r="5" />
+          </g>
+
+          <g class="emotion-layer" aria-hidden="true">
+            <g class="emotion-mark emotion-joy">
+              <path class="sparkle large" d="M57 52 L64 68 L80 75 L64 82 L57 98 L50 82 L34 75 L50 68 Z" />
+              <path class="sparkle small" d="M319 50 L324 60 L335 65 L324 70 L319 80 L314 70 L303 65 L314 60 Z" />
+              <path class="sparkle tiny" d="M188 39 L193 51 L205 56 L193 61 L188 73 L183 61 L171 56 L183 51 Z" />
+            </g>
+            <g class="emotion-mark emotion-sad">
+              <path class="tear left-tear" d="M72 154 C62 169 66 183 78 183 C90 183 93 169 83 154 C80 149 75 149 72 154 Z" />
+              <path class="tear right-tear" d="M298 154 C288 169 292 183 304 183 C316 183 319 169 309 154 C306 149 301 149 298 154 Z" />
+            </g>
+            <g class="emotion-mark emotion-troubled">
+              <path class="worry-arrow" d="M34 124 H84 M68 108 L84 124 L68 140" />
+              <path class="worry-arrow" d="M346 124 H296 M312 108 L296 124 L312 140" />
+            </g>
+            <g class="emotion-mark emotion-surprise">
+              <circle class="surprise-ring" cx="105" cy="124" r="61" />
+              <circle class="surprise-ring" cx="275" cy="124" r="61" />
+            </g>
+            <g class="emotion-mark emotion-anger">
+              <path class="anger-mark" d="M47 43 L61 57 M61 43 L47 57 M54 36 V64 M40 50 H68" />
+              <path class="anger-mark" d="M312 43 L326 57 M326 43 L312 57 M319 36 V64 M305 50 H333" />
+            </g>
+          </g>
+
+          <g class="blink-lids">
+            <ellipse class="lid upper-lid" cx="105" cy="88" rx="58" ry="44" fill="url(#lidShade)" />
+            <ellipse class="lid lower-lid" cx="105" cy="160" rx="58" ry="44" fill="url(#lidShade)" />
+            <ellipse class="lid upper-lid" cx="275" cy="88" rx="58" ry="44" fill="url(#lidShade)" />
+            <ellipse class="lid lower-lid" cx="275" cy="160" rx="58" ry="44" fill="url(#lidShade)" />
+            <path class="closed-eye-line" d="M65 126 Q105 139 145 126" />
+            <path class="closed-eye-line" d="M235 126 Q275 139 315 126" />
+          </g>
+        </svg>
+      </section>
+
+      <section class="control-panel" aria-labelledby="expressionTitle">
+        <div>
+          <p class="eyebrow">Expression</p>
+          <h1 id="expressionTitle">表情を切り替える</h1>
+          <p id="currentExpression" class="current-expression" aria-live="polite">現在: 嬉しい</p>
+        </div>
+
+        <div class="button-grid" aria-label="表情ボタン">
+          <button type="button" data-expression="happy">嬉しい</button>
+          <button type="button" data-expression="very_happy">とても嬉しい</button>
+          <button type="button" data-expression="sad">悲しい・元気がない</button>
+        </div>
+
+        <div class="button-grid utility-grid" aria-label="動作確認ボタン">
+          <button type="button" data-action="blink">瞬き</button>
+          <button type="button" data-action="sleep">スリープ</button>
+          <button type="button" data-action="wake">起こす</button>
+          <button type="button" data-look="-18,0">左を見る</button>
+          <button type="button" data-look="18,0">右を見る</button>
+          <button type="button" data-look="0,0">正面</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

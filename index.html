@@ -132,6 +132,18 @@
             <h2>ペットとして愛でる</h2>
             <p>呼びかけや動きに反応する目を通して、手元のスマホを犬のような存在として楽しみます。</p>
           </article>
+          <article class="feature-card">
+            <span>04</span>
+            <h2>人との距離を計算する</h2>
+            <p>カメラ映像から人物または顔を検出し、おおよその距離を表示します。2m以内に入ったときは画面表示と音で知らせます。</p>
+            <a class="feature-link" href="./person-distance/">距離計算ページを開く</a>
+          </article>
+          <article class="feature-card">
+            <span>05</span>
+            <h2>目の表情をテストする</h2>
+            <p>上部に表示した目を見ながら、嬉しい、とても嬉しい、悲しい・元気がない表情をボタンで切り替えられます。</p>
+            <a class="feature-link" href="./eye-test/">表情テストページを開く</a>
+          </article>
         </div>
 
         <section class="visual-guide" aria-labelledby="visualGuideTitle">
@@ -292,6 +304,10 @@
               <span id="volumeBar"></span>
             </div>
           </div>
+          <div class="voice-readout">
+            <span>返答</span>
+            <p id="replyText">まだ返答していません</p>
+          </div>
         </section>
 
         <section class="diagnostic-help" aria-label="原因の見方">
@@ -341,8 +357,14 @@
                 </filter>
               </defs>
 
-              <path class="eye-brow" d="M63 72 Q105 43 147 72" />
-              <path class="eye-brow" d="M233 72 Q275 43 317 72" />
+              <g class="eye-brows">
+                <path class="eye-brow left-brow" d="M63 72 Q105 43 147 72" />
+                <path class="eye-brow right-brow" d="M233 72 Q275 43 317 72" />
+              </g>
+              <g class="sad-brows" aria-hidden="true">
+                <path class="sad-brow" d="M63 86 Q105 64 147 74" />
+                <path class="sad-brow" d="M233 74 Q275 64 317 86" />
+              </g>
 
               <g class="eye-shell">
                 <ellipse class="eye-aura" cx="105" cy="124" rx="58" ry="64" />
@@ -365,6 +387,18 @@
                 <circle class="pupil" cx="275" cy="124" r="24" fill="url(#pupilGlow)" />
                 <circle class="catchlight main" cx="261" cy="103" r="9" />
                 <circle class="catchlight sub" cx="292" cy="113" r="5" />
+              </g>
+
+              <g class="emotion-layer" aria-hidden="true">
+                <g class="emotion-mark emotion-joy">
+                  <path class="sparkle large" d="M57 52 L64 68 L80 75 L64 82 L57 98 L50 82 L34 75 L50 68 Z" />
+                  <path class="sparkle small" d="M319 50 L324 60 L335 65 L324 70 L319 80 L314 70 L303 65 L314 60 Z" />
+                  <path class="sparkle tiny" d="M188 39 L193 51 L205 56 L193 61 L188 73 L183 61 L171 56 L183 51 Z" />
+                </g>
+                <g class="emotion-mark emotion-sad">
+                  <path class="tear left-tear" d="M72 154 C62 169 66 183 78 183 C90 183 93 169 83 154 C80 149 75 149 72 154 Z" />
+                  <path class="tear right-tear" d="M298 154 C288 169 292 183 304 183 C316 183 319 169 309 154 C306 149 301 149 298 154 Z" />
+                </g>
               </g>
 
               <g class="blink-lids">
@@ -417,6 +451,14 @@
       <a href="#running" data-route="running">
         <span aria-hidden="true">▶</span>
         動作中
+      </a>
+      <a href="./person-distance/">
+        <span aria-hidden="true">m</span>
+        距離計算
+      </a>
+      <a href="./eye-test/">
+        <span aria-hidden="true">◎</span>
+        目テスト
       </a>
     </nav>
 

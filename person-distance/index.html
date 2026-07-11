@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1673d3" />
+    <title>人物距離テスト</title>
+    <link rel="stylesheet" href="./styles.css?v=two-meter-alert-1" />
+  </head>
+  <body>
+    <main class="distance-test">
+      <a class="back-link" href="../">← スマホ犬トップへ戻る</a>
+      <p class="eyebrow">Person Detection</p>
+      <h1>人物距離テスト</h1>
+      <p class="lead">カメラに映る人物とのおおよその距離を推定します。</p>
+
+      <section class="camera-panel">
+        <div class="camera-view">
+          <video id="video" playsinline muted autoplay></video>
+          <canvas id="overlay" aria-hidden="true"></canvas>
+          <p id="cameraMessage" class="camera-message">カメラを開始してください</p>
+        </div>
+
+        <div id="readout" class="readout" aria-live="polite">
+          <span>推定距離</span>
+          <strong id="distanceText">--</strong>
+          <p id="methodText">人物を検出すると表示されます</p>
+        </div>
+
+        <div class="actions">
+          <button id="startButton" class="primary-button" type="button">カメラを開始</button>
+          <button id="stopButton" class="secondary-button" type="button" disabled>停止</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3/dist/face-detection.min.js"></script>
+    <script src="./app.js?v=two-meter-alert-1"></script>
+  </body>
+</html>

@@ -38,6 +38,7 @@ const elements = {
   speechCheckText: document.querySelector("#speechCheckText"),
   barkCheckText: document.querySelector("#barkCheckText"),
   checkTranscriptText: document.querySelector("#checkTranscriptText"),
+  replyText: document.querySelector("#replyText"),
   volumeText: document.querySelector("#volumeText"),
   volumeBar: document.querySelector("#volumeBar"),
   browserCheckButton: document.querySelector("#browserCheckButton"),
@@ -105,6 +106,9 @@ const speechState = {
   interimText: "",
   lastCommandKey: "",
   lastCommandAt: 0,
+  speakingUntil: 0,
+  chatHistory: [],
+  chatSending: false,
   audioContext: null,
   volumeStream: null,
   volumeAudioContext: null,
@@ -129,6 +133,7 @@ const AUTH_REDIRECT_URL = new URL("index.html#product", window.location.href).hr
 const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
 const SERVER_TRANSCRIBE_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/transcribe";
+const SERVER_CHAT_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/chat";
 const SERVER_TRANSCRIBE_CHUNK_MS = 2000;
 const EYE_RANGE_X = 20;
 const EYE_RANGE_Y = 12;
@@ -1315,22 +1320,80 @@ function updateVolumeMeter() {
   speechState.volumeRafId = requestAnimationFrame(updateVolumeMeter);
 }
 
-function handleVoiceCommand(text) {
+async function handleVoiceCommand(text) {
+  if (Date.now() < speechState.speakingUntil) return;
+  if (speechState.chatSending) return;
+
   const dogName = normalizeSpeech(settings.dogName || defaultSettings.dogName);
   const heard = normalizeSpeech(text);
-  if (!dogName || !heard.includes(dogName)) return;
+  if (!heard || heard.length < 2) return;
 
   const behavior = getVoiceBehavior(heard);
-  const commandKey = `${behavior.command}:${heard}`;
+  const commandKey = `ai:${heard}`;
   const now = Date.now();
-  if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 1800) return;
+  if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 4200) return;
 
   speechState.lastCommandKey = commandKey;
   speechState.lastCommandAt = now;
   runState.followRequested = behavior.follow;
   setRobotCommand(behavior.command);
   setEmotion(behavior.emotion, behavior.duration);
-  bark(behavior.barkCount);
+  speechState.chatSending = true;
+  elements.replyText.textContent = "考え中ワン";
+
+  try {
+    const reply = await requestAiReply(text);
+    bark(behavior.barkCount);
+    window.setTimeout(() => speakKyokoReply(reply), behavior.barkCount * 360 + 100);
+  } catch {
+    const fallbackReply = buildDogReply(text, heard, dogName);
+    bark(behavior.barkCount);
+    window.setTimeout(() => speakKyokoReply(fallbackReply), behavior.barkCount * 360 + 100);
+  } finally {
+    speechState.chatSending = false;
+  }
+}
+
+async function requestAiReply(text) {
+  const dogName = settings.dogName || defaultSettings.dogName;
+  const response = await fetch(SERVER_CHAT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      dog_name: dogName,
+      history: speechState.chatHistory,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Chat server returned ${response.status}`);
+
+  const data = await response.json();
+  const reply = ensureWanEnding(data.reply);
+  rememberChat("user", text);
+  rememberChat("assistant", reply);
+  return reply;
+}
+
+function rememberChat(role, content) {
+  speechState.chatHistory.push({
+    role,
+    content: String(content || "").trim().slice(0, 360),
+  });
+  speechState.chatHistory = speechState.chatHistory
+    .filter((message) => message.content)
+    .slice(-8);
+}
+
+function buildDogReply(_originalText, heard, dogName) {
+  if (heard.includes("おいで")) return "いま行くワン";
+  if (heard.includes("ありがとう") || heard.includes("ありがと")) return "どういたしましてワン";
+  if (heard.includes("好き") || heard.includes("すき")) return "ぼくも好きだワン";
+  if (heard.includes("悲しい") || heard.includes("かなしい") || heard.includes("寂しい") || heard.includes("さみしい")) return "そばにいるワン";
+  if (heard.includes("困") || heard.includes("こま")) return "一緒に考えるワン";
+  if (heard.includes("名前") || heard.includes("なまえ")) return `ぼくは${settings.dogName || defaultSettings.dogName}だワン`;
+  if (dogName && heard.includes(dogName)) return "呼んだワン";
+  return "聞こえたワン";
 }
 
 function getVoiceBehavior(heard) {
@@ -1463,6 +1526,46 @@ function publishRunningBehavior() {
   };
   window.smartphoneDogBehavior = detail;
   window.dispatchEvent(new CustomEvent("smartphone-dog-behavior", { detail }));
+}
+
+function speakKyokoReply(reply) {
+  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+
+  const responseText = ensureWanEnding(reply);
+  elements.replyText.textContent = responseText;
+  speechState.speakingUntil = Date.now() + Math.max(2400, (responseText.length + 4) * 160);
+
+  const voice = getKyokoVoice();
+  const greeting = new SpeechSynthesisUtterance("はいワン");
+  const response = new SpeechSynthesisUtterance(responseText);
+  [greeting, response].forEach((utterance) => {
+    utterance.lang = "ja-JP";
+    utterance.rate = 1.04;
+    utterance.pitch = 0.82;
+    utterance.volume = 1;
+    if (voice) utterance.voice = voice;
+  });
+
+  greeting.addEventListener("end", () => {
+    window.setTimeout(() => window.speechSynthesis.speak(response), 320);
+  });
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(greeting);
+}
+
+function getKyokoVoice() {
+  if (!window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find((voice) => voice.name.toLowerCase().includes("kyoko"))
+    || voices.find((voice) => voice.lang.toLowerCase().startsWith("ja"))
+    || null;
+}
+
+function ensureWanEnding(reply) {
+  const trimmed = String(reply || "").trim().replace(/[。.!！?？]+$/g, "");
+  if (!trimmed) return "聞こえたワン";
+  return trimmed.endsWith("ワン") ? trimmed : `${trimmed}ワン`;
 }
 
 function normalizeSpeech(text) {

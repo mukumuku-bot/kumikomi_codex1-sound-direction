@@ -1,0 +1,161 @@
+:root {
+  color: #13233a;
+  background: #f4f8fc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.distance-test {
+  width: min(100%, 620px);
+  margin: 0 auto;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-bottom: 18px;
+  padding: 0 12px;
+  border: 1px solid #cbd9e8;
+  border-bottom: 3px solid #0b4f97;
+  background: #ffffff;
+  color: #1673d3;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #1673d3;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.lead {
+  margin: 12px 0 24px;
+  color: #52647a;
+  line-height: 1.7;
+}
+
+.camera-panel {
+  overflow: hidden;
+  border: 1px solid #cbd9e8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgb(32 76 122 / 10%);
+}
+
+.camera-view {
+  position: relative;
+  min-height: 300px;
+  background: #0e1c2d;
+}
+
+video,
+canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.camera-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  color: #d8e7f7;
+  text-align: center;
+}
+
+.camera-message.is-hidden {
+  display: none;
+}
+
+.readout {
+  padding: 24px 24px 12px;
+  text-align: center;
+}
+
+.readout span,
+.readout p {
+  color: #52647a;
+}
+
+.readout span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.readout strong {
+  display: block;
+  margin: 5px 0;
+  color: #1673d3;
+  font-size: 42px;
+  line-height: 1.1;
+}
+
+.readout p {
+  min-height: 24px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.readout.is-in-range {
+  background: #e9f8ef;
+}
+
+.readout.is-in-range strong {
+  color: #16834b;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px 24px;
+}
+
+button {
+  min-height: 52px;
+  flex: 1;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 700;
+}
+
+.primary-button {
+  border: 0;
+  background: #1673d3;
+  color: #ffffff;
+}
+
+.secondary-button {
+  border: 1px solid #1673d3;
+  background: #ffffff;
+  color: #1673d3;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

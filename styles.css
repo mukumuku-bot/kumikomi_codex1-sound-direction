@@ -623,6 +623,20 @@ button:disabled {
   font-weight: 900;
 }
 
+.feature-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 18px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  border-bottom: 4px solid var(--accent-strong);
+  background: #ffffff;
+  color: var(--accent);
+  font-weight: 900;
+}
+
 .visual-guide {
   margin-top: 34px;
 }
@@ -766,7 +780,7 @@ button:disabled {
 
 .voice-check-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(210px, 0.7fr) minmax(0, 1.1fr);
   gap: 18px;
   margin-top: 18px;
 }
@@ -990,7 +1004,19 @@ body.is-running-page .dog-eyes,
   stroke-width: 8;
   stroke-linecap: round;
   filter: drop-shadow(0 0 8px rgba(92, 168, 255, 0.68));
-  transition: stroke 180ms ease, opacity 180ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 180ms ease, stroke 180ms ease, opacity 180ms ease;
+}
+
+.sad-brow {
+  fill: none;
+  stroke: #5ca8ff;
+  stroke-width: 8;
+  stroke-linecap: round;
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(92, 168, 255, 0.68));
+  transition: opacity 180ms ease;
 }
 
 .eye-aura {
@@ -1032,11 +1058,12 @@ body.is-running-page .dog-eyes,
 }
 
 .dog-eyes.is-emotion-sad .eye-brow {
-  stroke: #4e7596;
-  opacity: 0.56;
-  transform: translateY(8px) scaleY(0.78);
-  transform-box: fill-box;
-  transform-origin: center;
+  opacity: 0;
+}
+
+.dog-eyes.is-emotion-sad .sad-brow,
+.dog-eyes[data-expression="sad"] .sad-brow {
+  opacity: 1;
 }
 
 .dog-eyes.is-emotion-sad .eye-aura {
@@ -1051,9 +1078,110 @@ body.is-running-page .dog-eyes,
   opacity: 0.68;
 }
 
+.emotion-mark {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.sparkle {
+  fill: #ffffff;
+  stroke: #ead67a;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px rgba(234, 214, 122, 0.86));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tear {
+  fill: #79d7ff;
+  stroke: rgba(236, 252, 255, 0.9);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px rgba(121, 215, 255, 0.72));
+}
+
+.dog-eyes.is-emotion-happy .emotion-joy,
+.dog-eyes[data-expression="happy"] .emotion-joy {
+  opacity: 1;
+}
+
+.dog-eyes.is-emotion-happy .sparkle.large,
+.dog-eyes.is-emotion-happy .sparkle.small,
+.dog-eyes[data-expression="happy"] .sparkle.large,
+.dog-eyes[data-expression="happy"] .sparkle.small {
+  animation: gentleSparkle 1.8s ease-in-out infinite;
+}
+
+.dog-eyes.is-emotion-happy .sparkle.small,
+.dog-eyes[data-expression="happy"] .sparkle.small {
+  animation-delay: 260ms;
+}
+
+.dog-eyes.is-emotion-happy .sparkle.tiny,
+.dog-eyes[data-expression="happy"] .sparkle.tiny {
+  opacity: 0;
+}
+
+.dog-eyes.is-emotion-very-happy .emotion-joy,
+.dog-eyes[data-expression="very_happy"] .emotion-joy {
+  opacity: 1;
+  transform: translateY(-6px) scale(1.08);
+}
+
+.dog-eyes.is-emotion-very-happy .sparkle,
+.dog-eyes[data-expression="very_happy"] .sparkle {
+  animation: sparklePop 1.15s ease-in-out infinite;
+}
+
+.dog-eyes.is-emotion-very-happy .sparkle.small,
+.dog-eyes[data-expression="very_happy"] .sparkle.small {
+  animation-delay: 160ms;
+}
+
+.dog-eyes.is-emotion-very-happy .sparkle.tiny,
+.dog-eyes[data-expression="very_happy"] .sparkle.tiny {
+  animation-delay: 320ms;
+}
+
+.dog-eyes.is-emotion-sad .emotion-sad,
+.dog-eyes[data-expression="sad"] .emotion-sad {
+  opacity: 1;
+}
+
 @keyframes voice-emotion-pulse {
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes sparklePop {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: translateY(0) scale(0.82) rotate(0deg);
+  }
+
+  45% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.2) rotate(10deg);
+  }
+
+  70% {
+    opacity: 0.78;
+    transform: translateY(1px) scale(0.96) rotate(-6deg);
+  }
+}
+
+@keyframes gentleSparkle {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.92;
+    transform: scale(1.04);
   }
 }
 
