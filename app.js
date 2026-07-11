@@ -76,8 +76,14 @@ const runState = {
   eyeX: 0,
   eyeY: 0,
   sleeping: false,
-  voiceEmotionTimer: null,
-  idleSadnessTimer: null,
+  emotion: "normal",
+  emotionTimer: null,
+  command: "待機",
+  followRequested: false,
+  personVisible: false,
+  absenceActive: false,
+  absenceSadnessTimer: null,
+  absenceSleepTimer: null,
   trackedCenter: null,
   coveredFrames: 0,
 };
@@ -128,7 +134,10 @@ const EYE_RANGE_X = 20;
 const EYE_RANGE_Y = 12;
 const EYE_TRACKING_RESPONSE = 0.34;
 const FACE_COVER_SWITCH_FRAMES = 8;
-const IDLE_SADNESS_DELAY_MS = 180000;
+const ABSENCE_SADNESS_DELAY_MS = 30000;
+const ABSENCE_SLEEP_DELAY_MS = 180000;
+const TWO_METERS_PERSON_HEIGHT_RATIO = 0.42;
+const TWO_METERS_FACE_HEIGHT_RATIO = 0.11;
 
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
@@ -590,6 +599,7 @@ async function startRun() {
     updateRunningViewMode();
     resetEyeTracking();
     wakeEyes();
+    resetRunningBehavior();
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -606,7 +616,7 @@ async function startRun() {
     elements.stopRunButton.disabled = false;
     elements.runStatusText.textContent = detectionReady ? "人物を探しています" : "目だけを表示しています";
     startHiddenTranscription();
-    startIdleSadnessCountdown();
+    markPersonAbsent();
     if (detectionReady) {
       detectLoop();
     } else {
@@ -626,8 +636,10 @@ async function startRun() {
 function stopRun() {
   runState.running = false;
   runState.detecting = false;
-  clearVoiceEmotion();
-  clearIdleSadness();
+  clearAbsenceTimers();
+  clearEmotionTimer();
+  runState.followRequested = false;
+  setRobotCommand("待機");
   stopHiddenTranscription();
   stopVolumeMeter();
   if (runState.rafId) cancelAnimationFrame(runState.rafId);
@@ -727,7 +739,6 @@ function renderDetections(predictions, faces = []) {
 
   if (!people.length) {
     if (faces.length) {
-      clearIdleSadness();
       wakeEyes();
       const mainFace = chooseTrackedFace(faces, frameWidth, frameHeight);
       if (!mainFace) {
@@ -736,6 +747,7 @@ function renderDetections(predictions, faces = []) {
       }
       const metrics = getOffsetMetrics(mainFace.bbox, frameWidth, frameHeight);
       updateEyeTracking(metrics.x, metrics.y);
+      markPersonPresent(mainFace.bbox, frameHeight, "face");
       elements.personCountText.textContent = String(faces.length);
       elements.runStatusText.textContent = "顔を追従中";
       elements.directionText.textContent = getDirectionLabel(metrics);
@@ -745,8 +757,8 @@ function renderDetections(predictions, faces = []) {
 
     runState.trackedCenter = null;
     runState.coveredFrames = 0;
-    startIdleSadnessCountdown();
-    sleepEyes();
+    markPersonAbsent();
+    if (runState.emotion !== "sleepy") wakeEyes();
     updateEyeTracking(0, 0);
     elements.runStatusText.textContent = "人物を探しています";
     elements.directionText.textContent = "未検出";
@@ -755,10 +767,10 @@ function renderDetections(predictions, faces = []) {
   }
 
   wakeEyes();
-  clearIdleSadness();
   const mainPerson = chooseTrackedPerson(people, faces, frameWidth, frameHeight);
   const metrics = getOffsetMetrics(mainPerson.bbox, frameWidth, frameHeight);
   updateEyeTracking(metrics.x, metrics.y);
+  markPersonPresent(mainPerson.bbox, frameHeight, "person");
   elements.runStatusText.textContent = "検出中";
   elements.directionText.textContent = getDirectionLabel(metrics);
   elements.confidenceText.textContent = `${Math.round(mainPerson.score * 100)}%`;
@@ -1297,84 +1309,149 @@ function handleVoiceCommand(text) {
   const heard = normalizeSpeech(text);
   if (!dogName || !heard.includes(dogName)) return;
 
-  const command = getVoiceCommand(heard);
-  const commandKey = `${command.id}:${heard}`;
+  const behavior = getVoiceBehavior(heard);
+  const commandKey = `${behavior.command}:${heard}`;
   const now = Date.now();
   if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 1800) return;
 
   speechState.lastCommandKey = commandKey;
   speechState.lastCommandAt = now;
-  triggerVoiceEmotion(command.emotion, command.duration);
-  bark(command.barkCount);
+  runState.followRequested = behavior.follow;
+  setRobotCommand(behavior.command);
+  setEmotion(behavior.emotion, behavior.duration);
+  bark(behavior.barkCount);
 }
 
-function getVoiceCommand(heard) {
+function getVoiceBehavior(heard) {
   if (includesCommandWord(heard, ["おいで"])) {
-    return { id: "come", barkCount: 2, emotion: "excited", duration: 2400 };
+    return { command: "移動", barkCount: 1, emotion: "very-happy", duration: 4000, follow: true };
   }
 
   if (includesCommandWord(heard, ["おて", "お手"])) {
-    return { id: "paw", barkCount: 1, emotion: "happy", duration: 2100 };
+    return { command: "お手", barkCount: 1, emotion: "happy", duration: 2400, follow: false };
   }
 
   if (includesCommandWord(heard, ["おすわり", "お座り"])) {
-    return { id: "sit", barkCount: 1, emotion: "happy", duration: 2200 };
+    return { command: "お座り", barkCount: 1, emotion: "happy", duration: 2400, follow: false };
   }
 
   if (includesCommandWord(heard, ["まて", "待て"])) {
-    return { id: "wait", barkCount: 1, emotion: "happy", duration: 2200 };
+    return { command: "待て", barkCount: 1, emotion: "normal", duration: 0, follow: false };
   }
 
-  return { id: "name", barkCount: 1, emotion: "happy", duration: 1800 };
+  return { command: "待機", barkCount: 1, emotion: "happy", duration: 1800, follow: false };
 }
 
 function includesCommandWord(heard, words) {
   return words.some((word) => heard.includes(word));
 }
 
-function triggerVoiceEmotion(emotion, duration) {
-  const classes = ["is-emotion-happy", "is-emotion-excited", "is-emotion-proud", "is-emotion-calm", "is-emotion-patient", "is-emotion-sad"];
-  const emotionClass = `is-emotion-${emotion}`;
-  clearIdleSadness();
+function resetRunningBehavior() {
+  runState.followRequested = false;
+  runState.personVisible = false;
+  runState.absenceActive = false;
+  clearAbsenceTimers();
+  clearEmotionTimer();
+  setRobotCommand("待機");
+  setEmotion("normal");
+}
+
+function markPersonPresent(bbox, frameHeight, targetType) {
+  runState.personVisible = true;
+  runState.absenceActive = false;
+  clearAbsenceTimers();
+  if (!runState.emotionTimer && ["sad", "sleepy"].includes(runState.emotion)) setEmotion("normal");
+
+  if (runState.followRequested) {
+    const near = isWithinTwoMeters(bbox, frameHeight, targetType);
+    setRobotCommand(near ? "移動停止" : "移動");
+  }
+}
+
+function markPersonAbsent() {
+  if (runState.absenceActive) return;
+
+  runState.personVisible = false;
+  runState.absenceActive = true;
+  setRobotCommand("待機");
+  if (!runState.emotionTimer) setEmotion("normal");
+  startAbsenceTimers();
+}
+
+function startAbsenceTimers() {
+  if (!runState.running) return;
+
+  runState.absenceSadnessTimer = window.setTimeout(() => {
+    if (!runState.running || runState.personVisible) return;
+    setRobotCommand("待機");
+    setEmotion("sad");
+  }, ABSENCE_SADNESS_DELAY_MS);
+
+  runState.absenceSleepTimer = window.setTimeout(() => {
+    if (!runState.running || runState.personVisible) return;
+    runState.followRequested = false;
+    setRobotCommand("眠る");
+    setEmotion("sleepy");
+  }, ABSENCE_SLEEP_DELAY_MS);
+}
+
+function clearAbsenceTimers() {
+  if (runState.absenceSadnessTimer) window.clearTimeout(runState.absenceSadnessTimer);
+  if (runState.absenceSleepTimer) window.clearTimeout(runState.absenceSleepTimer);
+  runState.absenceSadnessTimer = null;
+  runState.absenceSleepTimer = null;
+}
+
+function setRobotCommand(command) {
+  if (runState.command === command) return;
+  runState.command = command;
+  publishRunningBehavior();
+}
+
+function setEmotion(emotion, duration = 0) {
+  clearEmotionTimer();
+  runState.emotion = emotion;
+  const classes = ["is-emotion-happy", "is-emotion-very-happy", "is-emotion-sad"];
   elements.dogEyes.classList.remove(...classes);
-  elements.dogEyes.classList.add(emotionClass);
-  blinkEyes();
 
-  if (runState.voiceEmotionTimer) window.clearTimeout(runState.voiceEmotionTimer);
-  runState.voiceEmotionTimer = window.setTimeout(() => {
-    elements.dogEyes.classList.remove(emotionClass);
-    runState.voiceEmotionTimer = null;
-    startIdleSadnessCountdown();
-  }, duration);
+  if (emotion === "sleepy") {
+    sleepEyes();
+  } else {
+    wakeEyes();
+    if (emotion !== "normal") elements.dogEyes.classList.add(`is-emotion-${emotion}`);
+    if (emotion !== "normal") blinkEyes();
+  }
+
+  publishRunningBehavior();
+
+  if (duration > 0) {
+    runState.emotionTimer = window.setTimeout(() => {
+      runState.emotionTimer = null;
+      if (!runState.running) return;
+      setEmotion("normal");
+    }, duration);
+  }
 }
 
-function clearVoiceEmotion() {
-  if (runState.voiceEmotionTimer) window.clearTimeout(runState.voiceEmotionTimer);
-  runState.voiceEmotionTimer = null;
-  elements.dogEyes.classList.remove(
-    "is-emotion-happy",
-    "is-emotion-excited",
-    "is-emotion-proud",
-    "is-emotion-calm",
-    "is-emotion-patient",
-    "is-emotion-sad",
-  );
+function clearEmotionTimer() {
+  if (runState.emotionTimer) window.clearTimeout(runState.emotionTimer);
+  runState.emotionTimer = null;
 }
 
-function startIdleSadnessCountdown() {
-  if (!runState.running || runState.idleSadnessTimer || elements.dogEyes.classList.contains("is-emotion-sad")) return;
-
-  runState.idleSadnessTimer = window.setTimeout(() => {
-    runState.idleSadnessTimer = null;
-    if (!runState.running) return;
-    elements.dogEyes.classList.add("is-emotion-sad");
-  }, IDLE_SADNESS_DELAY_MS);
+function isWithinTwoMeters(bbox, frameHeight, targetType) {
+  const heightRatio = bbox[3] / Math.max(1, frameHeight);
+  const threshold = targetType === "face" ? TWO_METERS_FACE_HEIGHT_RATIO : TWO_METERS_PERSON_HEIGHT_RATIO;
+  return heightRatio >= threshold;
 }
 
-function clearIdleSadness() {
-  if (runState.idleSadnessTimer) window.clearTimeout(runState.idleSadnessTimer);
-  runState.idleSadnessTimer = null;
-  elements.dogEyes.classList.remove("is-emotion-sad");
+function publishRunningBehavior() {
+  const detail = {
+    command: runState.command,
+    emotion: runState.emotion,
+    following: runState.followRequested,
+  };
+  window.smartphoneDogBehavior = detail;
+  window.dispatchEvent(new CustomEvent("smartphone-dog-behavior", { detail }));
 }
 
 function normalizeSpeech(text) {

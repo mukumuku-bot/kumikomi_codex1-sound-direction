@@ -1004,9 +1004,18 @@ body.is-running-page .dog-eyes,
   stroke: #8fd0ff;
 }
 
-.dog-eyes.is-emotion-excited .eye-aura {
+.dog-eyes.is-emotion-very-happy .eye-brow {
+  stroke: #b3e2ff;
+}
+
+.dog-eyes.is-emotion-very-happy .eye-aura {
   opacity: 1;
-  animation: voice-emotion-pulse 460ms ease-in-out 4;
+  animation: voice-emotion-pulse 460ms ease-in-out 8;
+}
+
+.dog-eyes.is-emotion-very-happy .iris-line {
+  stroke: #eefaff;
+  stroke-width: 4.5;
 }
 
 .dog-eyes.is-emotion-proud .eye-aura {
