@@ -1327,6 +1327,7 @@ async function handleVoiceCommand(text) {
   const dogName = normalizeSpeech(settings.dogName || defaultSettings.dogName);
   const heard = normalizeSpeech(text);
   if (!heard || heard.length < 2) return;
+  if (!dogName || !heard.includes(dogName)) return;
 
   const behavior = getVoiceBehavior(heard);
   const commandKey = `ai:${heard}`;
