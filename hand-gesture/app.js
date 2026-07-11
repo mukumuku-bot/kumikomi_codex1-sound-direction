@@ -18,8 +18,8 @@ const state = {
   running: false,
   detecting: false,
   rafId: null,
-  heartFrames: 0,
-  heartActive: false,
+  circleFrames: 0,
+  circleActive: false,
   reactionTimer: null,
   audioContext: null,
 };
@@ -32,8 +32,8 @@ const HAND_CONNECTIONS = [
   [0, 17], [17, 18], [18, 19], [19, 20],
   [5, 9], [9, 13], [13, 17],
 ];
-const HEART_CONFIRM_FRAMES = 6;
-const HEART_RELEASE_FRAMES = 8;
+const CIRCLE_CONFIRM_FRAMES = 6;
+const CIRCLE_RELEASE_FRAMES = 8;
 const ctx = elements.overlay.getContext("2d");
 
 document.body.classList.toggle("is-embedded", new URLSearchParams(window.location.search).has("embed"));
@@ -107,54 +107,50 @@ function renderHands(hands) {
   const visibleHands = hands.filter((hand) => hand.score == null || hand.score >= 0.65);
   elements.handStatus.textContent = visibleHands.length ? `${visibleHands.length}手を検出` : "未検出";
 
-  let heartCandidate = false;
-  let bestHeart = null;
+  let circleCandidate = false;
+  let bestCircle = null;
   for (const hand of visibleHands) {
-    const result = analyzeFingerHeart(hand.keypoints);
-    drawHand(hand.keypoints, result.isHeart);
-    if (result.isHeart && (!bestHeart || result.score > bestHeart.score)) {
-      heartCandidate = true;
-      bestHeart = result;
+    const result = analyzeCircleGesture(hand.keypoints);
+    drawHand(hand.keypoints, result.isCircle);
+    if (result.isCircle && (!bestCircle || result.score > bestCircle.score)) {
+      circleCandidate = true;
+      bestCircle = result;
     }
   }
 
-  updateHeartState(heartCandidate, bestHeart);
+  updateCircleState(circleCandidate, bestCircle);
 }
 
-function analyzeFingerHeart(points) {
-  if (!Array.isArray(points) || points.length < 21) return { isHeart: false, score: 0 };
+function analyzeCircleGesture(points) {
+  if (!Array.isArray(points) || points.length < 21) return { isCircle: false, score: 0 };
   const palmSize = (distance(points[0], points[9]) + distance(points[5], points[17])) / 2;
-  if (palmSize < 12) return { isHeart: false, score: 0 };
+  if (palmSize < 12) return { isCircle: false, score: 0 };
 
   const tipGapRatio = distance(points[4], points[8]) / palmSize;
-  const distalAngle = angleBetween(
-    vector(points[3], points[4]),
+  const indexBendAngle = angleBetween(
+    vector(points[5], points[6]),
     vector(points[7], points[8]),
   );
-  const foldedFingers = [
-    isFingerFolded(points, 10, 12),
-    isFingerFolded(points, 14, 16),
-    isFingerFolded(points, 18, 20),
-  ].filter(Boolean).length;
-  const crossedDistance = Math.min(
-    pointToSegmentDistance(points[4], points[6], points[8]),
-    pointToSegmentDistance(points[8], points[2], points[4]),
-  ) / palmSize;
+  const indexPathLength = distance(points[5], points[6])
+    + distance(points[6], points[7])
+    + distance(points[7], points[8]);
+  const indexChordRatio = distance(points[5], points[8]) / Math.max(1, indexPathLength);
+  const openingRatio = (distance(points[3], points[7]) + distance(points[2], points[6])) / (2 * palmSize);
 
-  const tipsClose = tipGapRatio <= 0.42;
-  const fingersCross = distalAngle >= 28 || crossedDistance <= 0.24;
-  const handShapeMatches = foldedFingers >= 2;
-  const isHeart = tipsClose && fingersCross && handShapeMatches;
+  const tipsTouch = tipGapRatio <= 0.34;
+  const indexIsCurved = indexBendAngle >= 24 || indexChordRatio <= 0.86;
+  const circleHasOpening = openingRatio >= 0.16;
+  const isCircle = tipsTouch && indexIsCurved && circleHasOpening;
   const score = clamp(
-    (1 - tipGapRatio / 0.42) * 0.55
-      + Math.min(1, distalAngle / 70) * 0.25
-      + (foldedFingers / 3) * 0.2,
+    (1 - tipGapRatio / 0.34) * 0.55
+      + Math.min(1, indexBendAngle / 75) * 0.25
+      + Math.min(1, openingRatio / 0.42) * 0.2,
     0,
     1,
   );
 
   return {
-    isHeart,
+    isCircle,
     score,
     center: {
       x: (points[4].x + points[8].x) / 2,
@@ -163,31 +159,26 @@ function analyzeFingerHeart(points) {
   };
 }
 
-function isFingerFolded(points, pipIndex, tipIndex) {
-  const wrist = points[0];
-  return distance(points[tipIndex], wrist) <= distance(points[pipIndex], wrist) * 1.18;
-}
-
-function updateHeartState(candidate, result) {
+function updateCircleState(candidate, result) {
   if (candidate) {
-    state.heartFrames = Math.min(HEART_CONFIRM_FRAMES, state.heartFrames + 1);
+    state.circleFrames = Math.min(CIRCLE_CONFIRM_FRAMES, state.circleFrames + 1);
   } else {
-    state.heartFrames = Math.max(-HEART_RELEASE_FRAMES, state.heartFrames - 1);
+    state.circleFrames = Math.max(-CIRCLE_RELEASE_FRAMES, state.circleFrames - 1);
   }
 
-  if (state.heartFrames >= HEART_CONFIRM_FRAMES) {
-    elements.gestureStatus.textContent = "指ハートを認識 ♡";
+  if (state.circleFrames >= CIRCLE_CONFIRM_FRAMES) {
+    elements.gestureStatus.textContent = "円ジェスチャーを認識 ○";
     elements.gestureCard.classList.add("is-heart");
-    if (!state.heartActive) {
-      state.heartActive = true;
+    if (!state.circleActive) {
+      state.circleActive = true;
       triggerHeartReaction(result?.center);
     }
     return;
   }
 
-  if (state.heartFrames <= -HEART_RELEASE_FRAMES) state.heartActive = false;
+  if (state.circleFrames <= -CIRCLE_RELEASE_FRAMES) state.circleActive = false;
   elements.gestureCard.classList.remove("is-heart");
-  elements.gestureStatus.textContent = candidate ? "指ハート候補…" : "手の形を確認中";
+  elements.gestureStatus.textContent = candidate ? "円ジェスチャー候補…" : "手の形を確認中";
 }
 
 function triggerHeartReaction(center) {
@@ -215,12 +206,12 @@ function createHeartParticles(center) {
   }
 }
 
-function drawHand(points, isHeart) {
+function drawHand(points, isCircle) {
   const scaleX = elements.overlay.clientWidth / Math.max(1, elements.video.videoWidth);
   const scaleY = elements.overlay.clientHeight / Math.max(1, elements.video.videoHeight);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = isHeart ? "#ff4b91" : "#66d4ff";
-  ctx.fillStyle = isHeart ? "#ff89b8" : "#d9f6ff";
+  ctx.strokeStyle = isCircle ? "#ff4b91" : "#66d4ff";
+  ctx.fillStyle = isCircle ? "#ff89b8" : "#d9f6ff";
 
   for (const [fromIndex, toIndex] of HAND_CONNECTIONS) {
     const from = points[fromIndex];
@@ -237,12 +228,12 @@ function drawHand(points, isHeart) {
     ctx.fill();
   });
 
-  if (isHeart) {
+  if (isCircle) {
     const centerX = ((points[4].x + points[8].x) / 2) * scaleX;
     const centerY = ((points[4].y + points[8].y) / 2) * scaleY;
     ctx.font = "900 44px sans-serif";
     ctx.fillStyle = "#ff4b91";
-    ctx.fillText("♡", centerX - 22, centerY - 14);
+    ctx.fillText("○", centerX - 22, centerY - 14);
   }
 }
 
@@ -275,8 +266,8 @@ function stopCamera() {
   elements.cameraMessage.textContent = "「内カメラを開始」を押してください";
   elements.cameraMessage.classList.remove("is-hidden");
   elements.heartReaction.classList.remove("is-active");
-  state.heartFrames = 0;
-  state.heartActive = false;
+  state.circleFrames = 0;
+  state.circleActive = false;
   clearOverlay();
 }
 
@@ -332,17 +323,6 @@ function angleBetween(a, b) {
   const denominator = Math.max(0.0001, Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y));
   const cosine = clamp((a.x * b.x + a.y * b.y) / denominator, -1, 1);
   return Math.acos(cosine) * (180 / Math.PI);
-}
-
-function pointToSegmentDistance(point, start, end) {
-  const segment = vector(start, end);
-  const lengthSquared = segment.x ** 2 + segment.y ** 2;
-  if (!lengthSquared) return distance(point, start);
-  const projection = clamp(((point.x - start.x) * segment.x + (point.y - start.y) * segment.y) / lengthSquared, 0, 1);
-  return distance(point, {
-    x: start.x + segment.x * projection,
-    y: start.y + segment.y * projection,
-  });
 }
 
 function clamp(value, min, max) {
