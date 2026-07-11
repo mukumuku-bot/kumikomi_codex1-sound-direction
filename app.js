@@ -110,9 +110,9 @@ const AUTH_REDIRECT_URL = new URL("index.html#product", window.location.href).hr
 
 const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
-const EYE_RANGE_X = 30;
-const EYE_RANGE_Y = 18;
-const EYE_TRACKING_RESPONSE = 0.42;
+const EYE_RANGE_X = 20;
+const EYE_RANGE_Y = 12;
+const EYE_TRACKING_RESPONSE = 0.34;
 const FACE_COVER_SWITCH_FRAMES = 8;
 
 window.addEventListener("hashchange", showRouteFromHash);
