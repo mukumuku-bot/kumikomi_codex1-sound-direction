@@ -583,7 +583,6 @@ async function startRun() {
   elements.runStatusText.textContent = "カメラを起動しています";
   ensureBarkAudio();
   preloadBarkSample();
-  primeKyokoVoice();
 
   try {
     if (runState.running) stopRun();
@@ -1307,29 +1306,26 @@ function handleVoiceCommand(text) {
   speechState.lastCommandAt = now;
   triggerVoiceEmotion(command.emotion, command.duration);
   bark(command.barkCount);
-  window.setTimeout(() => {
-    speakKyokoReply(command.reply);
-  }, command.barkCount * 360 + 100);
 }
 
 function getVoiceCommand(heard) {
   if (includesCommandWord(heard, ["おいで"])) {
-    return { id: "come", barkCount: 2, reply: "いま行きます。", emotion: "excited", duration: 2400 };
+    return { id: "come", barkCount: 2, emotion: "excited", duration: 2400 };
   }
 
   if (includesCommandWord(heard, ["おて", "お手"])) {
-    return { id: "paw", barkCount: 1, reply: "おて。どうぞ。", emotion: "happy", duration: 2100 };
+    return { id: "paw", barkCount: 1, emotion: "happy", duration: 2100 };
   }
 
   if (includesCommandWord(heard, ["おすわり", "お座り"])) {
-    return { id: "sit", barkCount: 1, reply: "おすわり。おりこうだワン。", emotion: "happy", duration: 2200 };
+    return { id: "sit", barkCount: 1, emotion: "happy", duration: 2200 };
   }
 
   if (includesCommandWord(heard, ["まて", "待て"])) {
-    return { id: "wait", barkCount: 1, reply: "まってるワン。", emotion: "happy", duration: 2200 };
+    return { id: "wait", barkCount: 1, emotion: "happy", duration: 2200 };
   }
 
-  return { id: "name", barkCount: 1, reply: "どうしましたか。", emotion: "happy", duration: 1800 };
+  return { id: "name", barkCount: 1, emotion: "happy", duration: 1800 };
 }
 
 function includesCommandWord(heard, words) {
@@ -1379,42 +1375,6 @@ function clearIdleSadness() {
   if (runState.idleSadnessTimer) window.clearTimeout(runState.idleSadnessTimer);
   runState.idleSadnessTimer = null;
   elements.dogEyes.classList.remove("is-emotion-sad");
-}
-
-function primeKyokoVoice() {
-  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-  window.speechSynthesis.getVoices();
-}
-
-function getKyokoVoice() {
-  if (!window.speechSynthesis) return null;
-  const voices = window.speechSynthesis.getVoices();
-  return voices.find((voice) => voice.name.toLowerCase().includes("kyoko"))
-    || voices.find((voice) => voice.lang.toLowerCase().startsWith("ja"))
-    || null;
-}
-
-function speakKyokoReply(reply) {
-  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-
-  const voice = getKyokoVoice();
-  const greeting = new SpeechSynthesisUtterance("はい。");
-  const response = new SpeechSynthesisUtterance(reply);
-
-  [greeting, response].forEach((utterance) => {
-    utterance.lang = "ja-JP";
-    utterance.rate = 1.04;
-    utterance.pitch = 0.82;
-    utterance.volume = 1;
-    if (voice) utterance.voice = voice;
-  });
-
-  greeting.addEventListener("end", () => {
-    window.setTimeout(() => window.speechSynthesis.speak(response), 320);
-  });
-
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(greeting);
 }
 
 function normalizeSpeech(text) {
