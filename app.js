@@ -1,3 +1,5 @@
+import { analyzeCircleGesture } from "./hand-gesture/circle-gesture.mjs";
+
 const routes = ["account", "settings", "product", "check", "running"];
 const protectedRoutes = ["settings", "check", "running"];
 const defaultSettings = {
@@ -71,6 +73,7 @@ const elements = {
 const runState = {
   model: null,
   faceDetector: null,
+  handDetector: null,
   stream: null,
   running: false,
   detecting: false,
@@ -81,6 +84,8 @@ const runState = {
   emotion: "normal",
   emotionTimer: null,
   command: "待機",
+  pulseCommand: "",
+  pulseTimer: null,
   followRequested: false,
   personVisible: false,
   absenceActive: false,
@@ -88,6 +93,9 @@ const runState = {
   absenceSleepTimer: null,
   trackedCenter: null,
   coveredFrames: 0,
+  circleFrames: 0,
+  circleActive: false,
+  lastHandDetectionAt: 0,
 };
 
 const speechState = {
@@ -147,6 +155,10 @@ const TWO_METERS_FACE_HEIGHT_RATIO = 0.11;
 const MIN_VISIBLE_PERSON_SCORE = 0.62;
 const MIN_VISIBLE_FACE_SCORE = 0.65;
 const MIN_VISIBLE_FACE_HEIGHT_RATIO = 0.045;
+const CIRCLE_CONFIRM_FRAMES = 6;
+const CIRCLE_RELEASE_FRAMES = 8;
+const HAND_DETECTION_INTERVAL_MS = 120;
+const PULSE_COMMAND_DURATION_MS = 450;
 
 window.addEventListener("hashchange", showRouteFromHash);
 window.addEventListener("resize", resizeOverlay);
@@ -666,6 +678,7 @@ function stopRun() {
   clearAbsenceTimers();
   clearEmotionTimer();
   runState.followRequested = false;
+  clearPulseCommand();
   setRobotCommand("待機");
   stopHiddenTranscription();
   stopVolumeMeter();
@@ -676,6 +689,9 @@ function stopRun() {
   updateRunningViewMode();
   runState.trackedCenter = null;
   runState.coveredFrames = 0;
+  runState.circleFrames = 0;
+  runState.circleActive = false;
+  runState.lastHandDetectionAt = 0;
   elements.startRunButton.disabled = false;
   elements.stopRunButton.disabled = true;
   elements.personCountText.textContent = "0";
@@ -712,7 +728,14 @@ async function prepareDetection() {
     runState.faceDetector = null;
   }
 
-  return Boolean(runState.model || runState.faceDetector);
+  try {
+    await loadHandDetector();
+  } catch (error) {
+    console.warn(error);
+    runState.handDetector = null;
+  }
+
+  return Boolean(runState.model || runState.faceDetector || runState.handDetector);
 }
 
 async function loadFaceDetector() {
@@ -723,6 +746,19 @@ async function loadFaceDetector() {
   runState.faceDetector = await window.faceDetection.createDetector(model, {
     runtime: "tfjs",
     maxFaces: 8,
+  });
+}
+
+async function loadHandDetector() {
+  if (runState.handDetector) return;
+  if (!window.handPoseDetection) return;
+
+  const model = window.handPoseDetection.SupportedModels.MediaPipeHands;
+  runState.handDetector = await window.handPoseDetection.createDetector(model, {
+    runtime: "mediapipe",
+    solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240",
+    modelType: "lite",
+    maxHands: 2,
   });
 }
 
@@ -745,13 +781,59 @@ async function detectLoop() {
     const faces = runState.faceDetector
       ? await runState.faceDetector.estimateFaces(elements.video, { flipHorizontal: false })
       : [];
+    let hands = null;
+    const now = Date.now();
+    if (runState.handDetector && now - runState.lastHandDetectionAt >= HAND_DETECTION_INTERVAL_MS) {
+      hands = await runState.handDetector.estimateHands(elements.video, { flipHorizontal: false });
+      runState.lastHandDetectionAt = now;
+    }
     renderDetections(predictions, faces);
+    if (hands) updateCircleGesture(hands);
+    updateTrickStatus();
   } catch {
     elements.runStatusText.textContent = "検出中にエラーが発生しました";
   } finally {
     runState.detecting = false;
     if (runState.running) runState.rafId = requestAnimationFrame(detectLoop);
   }
+}
+
+function updateCircleGesture(hands) {
+  const candidate = hands
+    .filter((hand) => hand.score == null || hand.score >= 0.65)
+    .some((hand) => analyzeCircleGesture(hand.keypoints).isCircle);
+
+  if (candidate) {
+    runState.circleFrames = Math.min(CIRCLE_CONFIRM_FRAMES, runState.circleFrames + 1);
+  } else {
+    runState.circleFrames = Math.max(-CIRCLE_RELEASE_FRAMES, runState.circleFrames - 1);
+  }
+
+  if (runState.circleFrames >= CIRCLE_CONFIRM_FRAMES && !runState.circleActive) {
+    runState.circleActive = true;
+    enterTrickMode();
+  }
+
+  if (runState.circleFrames <= -CIRCLE_RELEASE_FRAMES) runState.circleActive = false;
+}
+
+function enterTrickMode() {
+  runState.followRequested = false;
+  clearAbsenceTimers();
+  clearEmotionTimer();
+  runState.command = "芸";
+  runState.emotion = "normal";
+  elements.dogEyes.classList.remove("is-emotion-happy", "is-emotion-very-happy", "is-emotion-sad");
+  wakeEyes();
+  elements.runStatusText.textContent = "芸を見ています";
+  publishRunningBehavior();
+}
+
+function updateTrickStatus() {
+  if (runState.command !== "芸") return;
+  elements.runStatusText.textContent = runState.pulseCommand === "芸記憶"
+    ? "芸を記憶しました"
+    : "芸を見ています";
 }
 
 function renderDetections(predictions, faces = []) {
@@ -1345,6 +1427,7 @@ async function handleVoiceCommand(text) {
   const dogName = normalizeSpeech(settings.dogName || defaultSettings.dogName);
   const heard = normalizeSpeech(text);
   if (!heard || heard.length < 2) return;
+  if (confirmTrickMemory(heard)) return;
   if (!dogName || !heard.includes(dogName)) return;
 
   const behavior = getVoiceBehavior(heard);
@@ -1371,6 +1454,20 @@ async function handleVoiceCommand(text) {
   } finally {
     speechState.chatSending = false;
   }
+}
+
+function confirmTrickMemory(heard) {
+  if (runState.command !== "芸" || !heard.includes("よし")) return false;
+
+  const commandKey = `trick-memory:${heard}`;
+  const now = Date.now();
+  if (speechState.lastCommandKey === commandKey && now - speechState.lastCommandAt < 1800) return true;
+  speechState.lastCommandKey = commandKey;
+  speechState.lastCommandAt = now;
+  pulseRobotCommand("芸記憶");
+  elements.replyText.textContent = "芸を記憶します";
+  elements.runStatusText.textContent = "芸を記憶しました";
+  return true;
 }
 
 async function requestAiReply(text) {
@@ -1462,6 +1559,13 @@ function markPersonPresent(bbox, frameHeight, targetType) {
 }
 
 function markPersonAbsent() {
+  if (runState.command === "芸") {
+    runState.personVisible = false;
+    runState.absenceActive = true;
+    clearAbsenceTimers();
+    if (runState.emotion !== "normal") setEmotion("normal");
+    return;
+  }
   if (runState.absenceActive) return;
 
   runState.personVisible = false;
@@ -1498,6 +1602,25 @@ function clearAbsenceTimers() {
 function setRobotCommand(command) {
   if (runState.command === command) return;
   runState.command = command;
+  publishRunningBehavior();
+}
+
+function pulseRobotCommand(command) {
+  if (runState.pulseTimer) window.clearTimeout(runState.pulseTimer);
+  runState.pulseCommand = command;
+  publishRunningBehavior();
+  runState.pulseTimer = window.setTimeout(() => {
+    runState.pulseTimer = null;
+    runState.pulseCommand = "";
+    publishRunningBehavior();
+  }, PULSE_COMMAND_DURATION_MS);
+}
+
+function clearPulseCommand() {
+  if (runState.pulseTimer) window.clearTimeout(runState.pulseTimer);
+  runState.pulseTimer = null;
+  if (!runState.pulseCommand) return;
+  runState.pulseCommand = "";
   publishRunningBehavior();
 }
 
@@ -1541,6 +1664,7 @@ function publishRunningBehavior() {
   const detail = {
     command: runState.command,
     emotion: runState.emotion,
+    pulseCommand: runState.pulseCommand,
     following: runState.followRequested,
   };
   window.smartphoneDogBehavior = detail;
