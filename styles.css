@@ -940,6 +940,10 @@ button:disabled {
   height: 650px;
 }
 
+.hand-test-frame {
+  height: 820px;
+}
+
 .status-dot {
   display: block;
   width: 14px;
@@ -1536,6 +1540,10 @@ body.is-running-page .dog-eyes,
 
   .distance-test-frame {
     height: 600px;
+  }
+
+  .hand-test-frame {
+    height: 760px;
   }
 
   .page-dock {
