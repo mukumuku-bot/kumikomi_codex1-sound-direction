@@ -1,4 +1,5 @@
 const routes = ["account", "settings", "product", "check", "running"];
+const protectedRoutes = ["settings", "check", "running"];
 const defaultSettings = {
   dogName: "ポチ",
 };
@@ -6,6 +7,8 @@ const defaultSettings = {
 const settings = loadSettings();
 const elements = {
   tabs: document.querySelectorAll("[data-route]"),
+  authModeLinks: document.querySelectorAll("[data-auth-mode]"),
+  headerLogoutButton: document.querySelector("#headerLogoutButton"),
   pages: document.querySelectorAll("[data-page]"),
   accountStatus: document.querySelector("#accountStatus"),
   signUpForm: document.querySelector("#signUpForm"),
@@ -101,8 +104,9 @@ const supabaseClient = createSupabaseClient();
 const authState = {
   user: null,
   session: null,
+  initialized: false,
 };
-const AUTH_REDIRECT_URL = new URL("index.html#account", window.location.href).href;
+const AUTH_REDIRECT_URL = new URL("index.html#product", window.location.href).href;
 
 const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
@@ -117,6 +121,10 @@ elements.signUpForm.addEventListener("submit", createAccount);
 elements.loginForm.addEventListener("submit", loginAccount);
 elements.resendConfirmationButton.addEventListener("click", resendConfirmationEmail);
 elements.logoutButton.addEventListener("click", logoutAccount);
+elements.headerLogoutButton.addEventListener("click", logoutAccount);
+elements.authModeLinks.forEach((link) => {
+  link.addEventListener("click", () => setAccountMode(link.dataset.authMode || "signin"));
+});
 elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
 elements.browserCheckButton.addEventListener("click", checkBrowser);
 elements.cameraCheckButton.addEventListener("click", checkCamera);
@@ -138,12 +146,21 @@ applySettingsToForm();
 initializeAuth();
 setupTranscription();
 checkBrowser();
+setAccountMode("signin");
+updateAuthNavigation();
 showRouteFromHash();
 scheduleBlink();
 
 function showRouteFromHash() {
   const route = window.location.hash.replace("#", "") || "product";
-  const currentRoute = routes.includes(route) ? route : "product";
+  let currentRoute = routes.includes(route) ? route : "product";
+  const loggedIn = Boolean(authState.user);
+
+  if (authState.initialized && protectedRoutes.includes(currentRoute) && !loggedIn) {
+    setAccountMode("signin");
+    currentRoute = "account";
+    if (window.location.hash !== "#account") window.location.hash = "#account";
+  }
 
   elements.pages.forEach((page) => {
     page.classList.toggle("is-active", page.dataset.page === currentRoute);
@@ -166,6 +183,8 @@ function showRouteFromHash() {
   if (currentRoute !== "check") {
     stopVolumeMeter();
   }
+
+  updateAuthNavigation();
 }
 
 function updateRunningViewMode() {
@@ -173,6 +192,22 @@ function updateRunningViewMode() {
   const live = route === "running" && runState.running;
   document.body.classList.toggle("is-running-page", live);
   elements.runScreen.classList.toggle("is-live", live);
+}
+
+function setAccountMode(mode) {
+  const nextMode = mode === "signup" ? "signup" : "signin";
+  document.body.dataset.accountMode = nextMode;
+  elements.loginForm.classList.toggle("is-primary-flow", nextMode === "signin");
+  elements.signUpForm.classList.toggle("is-primary-flow", nextMode === "signup");
+}
+
+function updateAuthNavigation() {
+  const loggedIn = Boolean(authState.user);
+  document.body.classList.toggle("is-authenticated", loggedIn);
+  elements.authModeLinks.forEach((link) => {
+    link.hidden = loggedIn;
+  });
+  elements.headerLogoutButton.hidden = !loggedIn;
 }
 
 function createSupabaseClient() {
@@ -204,12 +239,14 @@ async function initializeAuth() {
 
   authState.session = data.session;
   authState.user = data.session?.user || null;
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     authState.session = session;
     authState.user = session?.user || null;
-    syncAccountSettings();
+    await syncAccountSettings();
+    showRouteFromHash();
   });
   await syncAccountSettings();
+  showRouteFromHash();
 }
 
 async function createAccount(event) {
@@ -246,6 +283,9 @@ async function createAccount(event) {
     authState.session = data.session;
     authState.user = data.user;
     await saveDogProfile(dogName, true);
+    authState.initialized = true;
+    window.location.hash = "#product";
+    showRouteFromHash();
     updateAccountUi("アカウントを作成してログインしました", "is-ok");
   } else {
     updateAccountUi("確認メールを送信しました。メール確認後にログインしてください。", "is-ok");
@@ -273,6 +313,9 @@ async function loginAccount(event) {
   authState.session = data.session;
   authState.user = data.user;
   await syncAccountSettings();
+  authState.initialized = true;
+  window.location.hash = "#running";
+  showRouteFromHash();
 }
 
 async function resendConfirmationEmail() {
@@ -314,10 +357,14 @@ async function logoutAccount() {
   }
   authState.session = null;
   authState.user = null;
+  authState.initialized = true;
+  window.location.hash = "#product";
+  showRouteFromHash();
   updateAccountUi("ログアウトしました。犬の名前はこの端末の一時設定を使います。", "is-warn");
 }
 
 async function syncAccountSettings() {
+  authState.initialized = true;
   if (!supabaseClient || !authState.user) {
     updateAccountUi("未ログインです。ログインすると犬の名前をアカウントごとに保存できます。", supabaseClient ? "is-warn" : "is-bad");
     return;

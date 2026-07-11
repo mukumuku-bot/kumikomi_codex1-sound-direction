@@ -1717,6 +1717,85 @@ h1 {
   color: var(--accent-strong);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.header-link {
+  display: inline-grid;
+  min-height: 40px;
+  place-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: #ffffff;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.header-link.primary,
+.header-link.logout {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.header-link[hidden] {
+  display: none;
+}
+
+body:not(.is-authenticated) .page-dock {
+  display: none;
+}
+
+.page-dock a[data-route="product"],
+.page-dock a[data-route="account"] {
+  display: none;
+}
+
+body[data-account-mode="signin"] #loginForm,
+body[data-account-mode="signup"] #signUpForm {
+  border-color: rgba(0, 91, 172, 0.42);
+  box-shadow: 0 18px 38px rgba(0, 91, 172, 0.14);
+}
+
+body[data-account-mode="signin"] #loginForm,
+body[data-account-mode="signup"] #signUpForm {
+  order: 2;
+}
+
+body[data-account-mode="signin"] #signUpForm,
+body[data-account-mode="signup"] #loginForm {
+  order: 3;
+}
+
+@media (max-width: 680px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-link {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.82rem;
+  }
+}
+
 .primary-button {
   border: 0;
   border-bottom: 4px solid var(--accent-strong);
