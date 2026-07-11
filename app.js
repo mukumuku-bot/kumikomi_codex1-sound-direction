@@ -80,6 +80,11 @@ const runState = {
   coveredFrames: 0,
 };
 
+const batteryAlertState = {
+  timer: null,
+  checking: false,
+};
+
 const speechState = {
   recognition: null,
   supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
@@ -122,6 +127,8 @@ const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
 const SERVER_TRANSCRIBE_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/transcribe";
 const SERVER_TRANSCRIBE_CHUNK_MS = 2000;
+const BATTERY_ALERT_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/battery-alert";
+const BATTERY_ALERT_POLL_MS = 12000;
 const EYE_RANGE_X = 20;
 const EYE_RANGE_Y = 12;
 const EYE_TRACKING_RESPONSE = 0.34;
@@ -604,6 +611,7 @@ async function startRun() {
     elements.stopRunButton.disabled = false;
     elements.runStatusText.textContent = detectionReady ? "人物を探しています" : "目だけを表示しています";
     startHiddenTranscription();
+    startBatteryAlertWatch();
     if (detectionReady) {
       detectLoop();
     } else {
@@ -623,6 +631,7 @@ async function startRun() {
 function stopRun() {
   runState.running = false;
   runState.detecting = false;
+  stopBatteryAlertWatch();
   stopHiddenTranscription();
   stopVolumeMeter();
   if (runState.rafId) cancelAnimationFrame(runState.rafId);
@@ -643,6 +652,33 @@ function stopRun() {
 
 function stopStream(stream) {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+function startBatteryAlertWatch() {
+  if (batteryAlertState.timer) return;
+  checkBatteryAlert();
+  batteryAlertState.timer = window.setInterval(checkBatteryAlert, BATTERY_ALERT_POLL_MS);
+}
+
+function stopBatteryAlertWatch() {
+  if (batteryAlertState.timer) window.clearInterval(batteryAlertState.timer);
+  batteryAlertState.timer = null;
+}
+
+async function checkBatteryAlert() {
+  if (batteryAlertState.checking) return;
+  batteryAlertState.checking = true;
+
+  try {
+    const response = await fetch(BATTERY_ALERT_URL, { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.active) speakKyokoMessage("\u3054\u98ef\u304c\u6b32\u3057\u3044\u30ef\u30f3\u3002");
+  } catch {
+    // Battery alerts are optional; do not interrupt the running experience.
+  } finally {
+    batteryAlertState.checking = false;
+  }
 }
 
 async function loadModel() {
@@ -1337,6 +1373,22 @@ function speakKyokoReply(reply) {
 
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(greeting);
+}
+
+function speakKyokoMessage(message) {
+  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.lang = "ja-JP";
+  utterance.rate = 1.04;
+  utterance.pitch = 0.82;
+  utterance.volume = 1;
+
+  const voice = getKyokoVoice();
+  if (voice) utterance.voice = voice;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
 }
 
 function normalizeSpeech(text) {
