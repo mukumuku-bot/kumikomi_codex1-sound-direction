@@ -85,6 +85,14 @@ const speechState = {
   supported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
   listening: false,
   shouldListen: false,
+  mode: null,
+  serverListening: false,
+  serverStream: null,
+  serverOwnsStream: false,
+  serverTimer: null,
+  serverStopTimer: null,
+  serverRecorder: null,
+  serverSending: false,
   finalText: "",
   interimText: "",
   lastCommandKey: "",
@@ -110,6 +118,8 @@ const AUTH_REDIRECT_URL = new URL("index.html#product", window.location.href).hr
 
 const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
+const SERVER_TRANSCRIBE_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/transcribe";
+const SERVER_TRANSCRIBE_CHUNK_MS = 2000;
 const EYE_RANGE_X = 20;
 const EYE_RANGE_Y = 12;
 const EYE_TRACKING_RESPONSE = 0.34;
@@ -521,6 +531,12 @@ async function checkMic() {
 }
 
 function checkSpeech() {
+  if (!speechState.supported) {
+    startHiddenTranscription();
+    startVolumeMeter();
+    return;
+  }
+
   if (speechState.supported) {
     setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "名前を呼ぶ確認を開始しました");
     elements.checkTranscriptText.textContent = "聞き取り中です";
@@ -942,8 +958,8 @@ function wakeEyes() {
 
 function setupTranscription() {
   if (!speechState.supported) {
-    elements.transcribeButton.disabled = true;
-    elements.transcriptionStatus.textContent = "未対応";
+    elements.transcribeButton.disabled = false;
+    elements.transcriptionStatus.textContent = "サーバー待機中";
     return;
   }
 
@@ -955,6 +971,7 @@ function setupTranscription() {
 
   recognition.addEventListener("start", () => {
     speechState.listening = true;
+    speechState.mode = "native";
     elements.transcriptionStatus.textContent = "聞き取り中";
     elements.transcribeButton.textContent = "停止";
   });
@@ -981,7 +998,7 @@ function setupTranscription() {
     elements.transcriptionStatus.textContent = elements.transcriptText.value.trim() ? "停止中" : "待機中";
     elements.transcribeButton.textContent = "文字起こし開始";
     renderTranscript();
-    if (speechState.shouldListen) {
+    if (speechState.shouldListen && speechState.mode === "native") {
       window.setTimeout(startHiddenTranscription, 450);
     }
   });
@@ -992,6 +1009,9 @@ function setupTranscription() {
       speechState.shouldListen = false;
       setCheck(elements.speechDot, elements.speechCheckText, "is-bad", "マイクまたは音声認識が許可されていません");
       stopVolumeMeter();
+      speechState.mode = "server";
+      speechState.shouldListen = true;
+      startServerTranscription();
     } else {
       setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "音声認識を開始できませんでした");
     }
@@ -1003,23 +1023,31 @@ function setupTranscription() {
 }
 
 function toggleTranscription() {
-  if (!speechState.recognition) return;
-  if (speechState.listening) {
-    speechState.recognition.stop();
+  if (speechState.listening || speechState.serverListening) {
+    stopHiddenTranscription();
     return;
   }
 
-  speechState.recognition.lang = "ja-JP";
-  try {
-    speechState.recognition.start();
-  } catch {
-    elements.transcriptionStatus.textContent = "起動待ち";
-  }
+  startHiddenTranscription();
 }
 
 function startHiddenTranscription() {
+  if (speechState.serverListening) return;
+  speechState.shouldListen = true;
+  ensureBarkAudio();
+  startServerTranscription();
+}
+
+function startNativeTranscription() {
+  if (!speechState.recognition) {
+    speechState.shouldListen = true;
+    ensureBarkAudio();
+    startServerTranscription();
+    return;
+  }
   if (!speechState.recognition || speechState.listening) return;
   speechState.shouldListen = true;
+  speechState.mode = "native";
   speechState.recognition.lang = "ja-JP";
   ensureBarkAudio();
   setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "聞き取り中です。名前を呼ぶと鳴きます");
@@ -1033,9 +1061,167 @@ function startHiddenTranscription() {
 
 function stopHiddenTranscription() {
   speechState.shouldListen = false;
+  speechState.mode = null;
+  stopServerTranscription();
   if (speechState.recognition && speechState.listening) {
     speechState.recognition.stop();
   }
+}
+
+async function startServerTranscription() {
+  if (speechState.serverListening) return;
+  if (!window.MediaRecorder) {
+    elements.transcriptionStatus.textContent = "録音に未対応";
+    setCheck(elements.speechDot, elements.speechCheckText, "is-bad", "このブラウザではサーバー文字起こしを使えません");
+    return;
+  }
+
+  speechState.mode = "server";
+  speechState.serverListening = true;
+  ensureBarkAudio();
+
+  try {
+    speechState.serverStream = getServerAudioStream(runState.stream);
+    speechState.serverOwnsStream = !speechState.serverStream;
+    if (!speechState.serverStream) {
+      speechState.serverStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+    }
+
+    elements.transcriptionStatus.textContent = "サーバー聞き取り中";
+    elements.transcribeButton.textContent = "停止";
+    setCheck(elements.speechDot, elements.speechCheckText, "is-ok", "サーバー文字起こしで聞き取り中です");
+    startVolumeMeter(speechState.serverStream);
+    runServerTranscriptionLoop();
+  } catch (error) {
+    speechState.serverListening = false;
+    speechState.mode = null;
+    elements.transcriptionStatus.textContent = "マイクエラー";
+    setCheck(elements.speechDot, elements.speechCheckText, "is-bad", getMediaErrorMessage(error, "マイク"));
+  }
+}
+
+function getServerAudioStream(sourceStream) {
+  const audioTracks = sourceStream?.getAudioTracks?.().filter((track) => track.readyState === "live") || [];
+  return audioTracks.length ? new MediaStream(audioTracks) : null;
+}
+
+async function runServerTranscriptionLoop() {
+  if (!speechState.serverListening || speechState.serverSending) return;
+  speechState.serverSending = true;
+
+  try {
+    const blob = await recordServerAudioChunk(speechState.serverStream, SERVER_TRANSCRIBE_CHUNK_MS);
+    if (speechState.serverListening && blob.size) {
+      await sendServerAudioChunk(blob);
+    }
+  } catch (error) {
+    if (speechState.serverListening) {
+      elements.transcriptionStatus.textContent = "サーバー再接続中";
+      setCheck(elements.speechDot, elements.speechCheckText, "is-warn", "文字起こしサーバーとの通信を再試行しています");
+    }
+  } finally {
+    speechState.serverSending = false;
+    if (speechState.serverListening) {
+      speechState.serverTimer = window.setTimeout(runServerTranscriptionLoop, 120);
+    }
+  }
+}
+
+function recordServerAudioChunk(stream, durationMs) {
+  return new Promise((resolve, reject) => {
+    if (!stream?.getAudioTracks?.().some((track) => track.readyState === "live")) {
+      reject(new Error("Microphone track is unavailable"));
+      return;
+    }
+
+    const chunks = [];
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+    let recorder;
+
+    try {
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    speechState.serverRecorder = recorder;
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size) chunks.push(event.data);
+    });
+    recorder.addEventListener("error", (event) => reject(event.error || event));
+    recorder.addEventListener("stop", () => {
+      if (speechState.serverStopTimer) {
+        window.clearTimeout(speechState.serverStopTimer);
+        speechState.serverStopTimer = null;
+      }
+      if (speechState.serverRecorder === recorder) speechState.serverRecorder = null;
+      resolve(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+    });
+
+    recorder.start();
+    speechState.serverStopTimer = window.setTimeout(() => {
+      if (recorder.state === "recording") recorder.stop();
+    }, durationMs);
+  });
+}
+
+async function sendServerAudioChunk(blob) {
+  const formData = new FormData();
+  const dogName = settings.dogName || defaultSettings.dogName;
+  formData.append("audio", blob, "dog-command.webm");
+  formData.append("language", "ja");
+  formData.append("dog_name", dogName);
+
+  const response = await fetch(SERVER_TRANSCRIBE_URL, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Transcription server returned ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = String(data.text || "").trim();
+  if (!text) return;
+
+  speechState.finalText += `${text}\n`;
+  renderTranscript();
+  handleVoiceCommand(text);
+}
+
+function stopServerTranscription() {
+  speechState.serverListening = false;
+  if (speechState.serverTimer) {
+    window.clearTimeout(speechState.serverTimer);
+    speechState.serverTimer = null;
+  }
+  if (speechState.serverStopTimer) {
+    window.clearTimeout(speechState.serverStopTimer);
+    speechState.serverStopTimer = null;
+  }
+  if (speechState.serverRecorder?.state === "recording") {
+    speechState.serverRecorder.stop();
+  }
+  speechState.serverRecorder = null;
+  if (speechState.serverOwnsStream) {
+    stopStream(speechState.serverStream);
+  }
+  speechState.serverStream = null;
+  speechState.serverOwnsStream = false;
+  speechState.serverSending = false;
 }
 
 async function startVolumeMeter(sourceStream = null) {
