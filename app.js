@@ -104,6 +104,8 @@ const speechState = {
   volumeData: null,
   volumeRafId: null,
   volumeOwnsStream: false,
+  barkSampleBuffer: null,
+  barkSampleLoading: null,
   barkNoiseBuffer: null,
 };
 
@@ -546,11 +548,12 @@ function checkSpeech() {
 }
 
 function checkBark() {
-  if (typeof Audio !== "function" && !ensureBarkAudio()) {
+  if (!ensureBarkAudio()) {
     setCheck(elements.barkDot, elements.barkCheckText, "is-bad", "このブラウザでは音を再生できません");
     return;
   }
 
+  preloadBarkSample();
   bark(1);
   setCheck(elements.barkDot, elements.barkCheckText, "is-ok", "犬の鳴き声音声を再生しました");
 }
@@ -576,6 +579,7 @@ async function startRun() {
   elements.startRunButton.disabled = true;
   elements.runStatusText.textContent = "カメラを起動しています";
   ensureBarkAudio();
+  preloadBarkSample();
 
   try {
     if (runState.running) stopRun();
@@ -1032,6 +1036,7 @@ function startHiddenTranscription() {
   if (speechState.serverListening) return;
   speechState.shouldListen = true;
   ensureBarkAudio();
+  preloadBarkSample();
   startServerTranscription();
 }
 
@@ -1320,17 +1325,49 @@ function bark(count) {
 }
 
 function playBarkSample() {
-  if (typeof Audio !== "function") {
-    playSyntheticBark();
+  const audioContext = ensureBarkAudio();
+  const buffer = speechState.barkSampleBuffer;
+  if (!audioContext) return;
+
+  if (!buffer) {
+    preloadBarkSample().then((loaded) => {
+      if (loaded) playBarkSample();
+    });
     return;
   }
 
-  const audio = new Audio(BARK_AUDIO_SRC);
-  audio.preload = "auto";
-  audio.volume = 0.95;
-  audio.play().catch(() => {
-    playSyntheticBark();
-  });
+  const source = audioContext.createBufferSource();
+  const gain = audioContext.createGain();
+  source.buffer = buffer;
+  gain.gain.setValueAtTime(0.95, audioContext.currentTime);
+  source.connect(gain);
+  gain.connect(audioContext.destination);
+  source.start();
+}
+
+async function preloadBarkSample() {
+  if (speechState.barkSampleBuffer) return true;
+  if (speechState.barkSampleLoading) return speechState.barkSampleLoading;
+
+  const audioContext = ensureBarkAudio();
+  if (!audioContext) return false;
+
+  speechState.barkSampleLoading = fetch(BARK_AUDIO_SRC)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Bark sound request failed: ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then((data) => audioContext.decodeAudioData(data))
+    .then((buffer) => {
+      speechState.barkSampleBuffer = buffer;
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      speechState.barkSampleLoading = null;
+    });
+
+  return speechState.barkSampleLoading;
 }
 
 function playSyntheticBark() {
