@@ -2357,3 +2357,230 @@ body[data-account-mode="signup"] #loginForm {
     inset: 18px;
   }
 }
+
+/* Site-wide black and orange theme. The live eye screen opts out completely. */
+body:not(.is-running-page) {
+  --text: #f7f3ee;
+  --muted: #c9c1b8;
+  --line: #4d3320;
+  --accent: #f57c00;
+  --accent-strong: #bc5600;
+  --yellow: #ffb15d;
+  --yellow-soft: #2a1a0e;
+  --on-accent: #15110d;
+  background: #090909;
+  color: #f7f3ee;
+}
+
+body:not(.is-running-page) .topbar {
+  background: #101010;
+  border-bottom-color: #452c1b;
+  box-shadow: none;
+}
+
+body:not(.is-running-page) .brand,
+body:not(.is-running-page) .header-link {
+  color: #f7f3ee;
+}
+
+body:not(.is-running-page) .brand-mark,
+body:not(.is-running-page) .header-link.primary,
+body:not(.is-running-page) .header-link.logout {
+  background: #f57c00;
+  border-color: #f57c00;
+  color: #15110d;
+}
+
+body:not(.is-running-page) .brand small {
+  color: #ff9d2e;
+}
+
+body:not(.is-running-page) .header-link {
+  border-color: #5a371f;
+  background: #17120f;
+}
+
+body:not(.is-running-page) .page-shell {
+  min-height: calc(100vh - 78px);
+}
+
+body:not(.is-running-page) .page-heading h1,
+body:not(.is-running-page) .page-heading h2,
+body:not(.is-running-page) .section-title h2,
+body:not(.is-running-page) .section-title h3 {
+  color: #ffffff;
+}
+
+body:not(.is-running-page) .page-heading p,
+body:not(.is-running-page) .page-heading p:not(.eyebrow),
+body:not(.is-running-page) .feature-card p,
+body:not(.is-running-page) .check-card p,
+body:not(.is-running-page) .guide-card p,
+body:not(.is-running-page) .behavior-flow span,
+body:not(.is-running-page) .account-card p,
+body:not(.is-running-page) .diagnostic-help p {
+  color: #c9c1b8;
+}
+
+body:not(.is-running-page) .eyebrow {
+  border-left-color: #ffb15d;
+  background: #f57c00;
+  color: #15110d;
+}
+
+body:not(.is-running-page) .account-card,
+body:not(.is-running-page) .field,
+body:not(.is-running-page) .toggle-row,
+body:not(.is-running-page) .feature-card,
+body:not(.is-running-page) .check-card,
+body:not(.is-running-page) .voice-readout,
+body:not(.is-running-page) .diagnostic-help,
+body:not(.is-running-page) .guide-card,
+body:not(.is-running-page) .behavior-flow,
+body:not(.is-running-page) .behavior-flow li,
+body:not(.is-running-page) .run-start-panel {
+  border-color: #51331e;
+  background: #151311;
+  box-shadow: none;
+}
+
+body:not(.is-running-page) .account-card h2,
+body:not(.is-running-page) .feature-card h2,
+body:not(.is-running-page) .check-card h2,
+body:not(.is-running-page) .guide-card h3,
+body:not(.is-running-page) .behavior-flow h2,
+body:not(.is-running-page) .behavior-flow strong,
+body:not(.is-running-page) .run-start-panel h1 {
+  color: #ffffff;
+}
+
+body:not(.is-running-page) .field label,
+body:not(.is-running-page) .field span,
+body:not(.is-running-page) .toggle-row span,
+body:not(.is-running-page) .account-card strong {
+  color: #f7f3ee;
+}
+
+body:not(.is-running-page) input,
+body:not(.is-running-page) textarea,
+body:not(.is-running-page) select {
+  border-color: #5a371f;
+  background: #0d0d0d;
+  color: #ffffff;
+}
+
+body:not(.is-running-page) input::placeholder,
+body:not(.is-running-page) textarea::placeholder {
+  color: #978c82;
+}
+
+body:not(.is-running-page) input:focus,
+body:not(.is-running-page) textarea:focus,
+body:not(.is-running-page) select:focus {
+  border-color: #ff8a18;
+  box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.18);
+}
+
+body:not(.is-running-page) .primary-button {
+  border-bottom-color: #9c4700;
+  background: #f57c00;
+  color: #15110d;
+}
+
+body:not(.is-running-page) .secondary-button {
+  border-color: #7b481f;
+  background: #1b1511;
+  color: #ffb15d;
+}
+
+body:not(.is-running-page) .secondary-button:hover {
+  border-color: #ff8a18;
+  background: #28180d;
+}
+
+body:not(.is-running-page) .feature-card::before,
+body:not(.is-running-page) .check-card::before,
+body:not(.is-running-page) .field::before,
+body:not(.is-running-page) .voice-readout::before,
+body:not(.is-running-page) .diagnostic-help::before {
+  background: #f57c00;
+}
+
+body:not(.is-running-page) .feature-card span,
+body:not(.is-running-page) .check-card .status-dot.is-ok,
+body:not(.is-running-page) .guide-step-number {
+  background: #f57c00;
+  color: #15110d;
+}
+
+body:not(.is-running-page) .feature-link,
+body:not(.is-running-page) .save-message.is-ok {
+  color: #ff9d2e;
+}
+
+body:not(.is-running-page) .guide-art,
+body:not(.is-running-page) .settings-visual {
+  border-color: #51331e;
+  background: #0f0e0d;
+}
+
+body:not(.is-running-page) .phone-frame,
+body:not(.is-running-page) .dock-phone,
+body:not(.is-running-page) .dock-shell {
+  border-color: #ff8a18;
+  background: #14110f;
+  box-shadow: none;
+}
+
+body:not(.is-running-page) .screen-line,
+body:not(.is-running-page) .dock-arrow,
+body:not(.is-running-page) .check-badge,
+body:not(.is-running-page) .tap-circle {
+  background: #f57c00;
+  border-color: #ffb15d;
+}
+
+body:not(.is-running-page) .behavior-flow {
+  border-top-color: #f57c00;
+}
+
+body:not(.is-running-page) .behavior-flow li::before {
+  color: #ff9d2e;
+}
+
+body:not(.is-running-page) .diagnostic-frame {
+  border-color: #5a371f;
+  background: #0d0d0d;
+}
+
+body:not(.is-running-page) .page-dock {
+  border-color: #4d3320;
+  background: #121110;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.3);
+}
+
+body:not(.is-running-page) .page-dock a {
+  color: #dacfc5;
+}
+
+body:not(.is-running-page) .page-dock a span {
+  background: #2a1b11;
+  color: #ff9d2e;
+}
+
+body:not(.is-running-page) .page-dock a.is-active {
+  border-color: #f57c00;
+  background: #f57c00;
+  color: #15110d;
+}
+
+body:not(.is-running-page) .page-dock a.is-active span {
+  background: #15110d;
+  color: #ffb15d;
+}
+
+@media (max-width: 620px) {
+  body:not(.is-running-page) .page-shell {
+    width: min(100% - 20px, 620px);
+  }
+}
