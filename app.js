@@ -1645,6 +1645,7 @@ function setEmotion(emotion, duration = 0) {
   const classes = ["is-emotion-happy", "is-emotion-very-happy", "is-emotion-sad"];
   elements.dogEyes.classList.remove(...classes, "is-emotion-fading");
   elements.dogEyes.setAttribute("data-expression", getEyeExpressionName(emotion));
+  applyDirectEmotionOverlay(emotion);
 
   if (emotion === "sleepy") {
     sleepEyes();
@@ -1674,9 +1675,11 @@ function clearEmotionTimer() {
 
 function fadeEmotionToNormal(classes) {
   elements.dogEyes.classList.add("is-emotion-fading");
+  fadeDirectEmotionOverlay();
   runState.emotionFadeTimer = window.setTimeout(() => {
     elements.dogEyes.classList.remove(...classes, "is-emotion-fading");
     elements.dogEyes.setAttribute("data-expression", "neutral");
+    clearDirectEmotionOverlay();
     runState.emotion = "normal";
     runState.emotionFadeTimer = null;
     publishRunningBehavior();
@@ -1687,6 +1690,65 @@ function getEyeExpressionName(emotion) {
   if (emotion === "very-happy") return "very_happy";
   if (["happy", "sad", "sleepy"].includes(emotion)) return emotion;
   return "neutral";
+}
+
+function applyDirectEmotionOverlay(emotion) {
+  const happy = emotion === "happy" || emotion === "very-happy";
+  const veryHappy = emotion === "very-happy";
+  const sad = emotion === "sad";
+  const joy = elements.dogEyes.querySelector(".emotion-joy");
+  const sadness = elements.dogEyes.querySelector(".emotion-sad");
+  const sadBrows = elements.dogEyes.querySelector(".sad-brows");
+  const sparkles = elements.dogEyes.querySelectorAll(".sparkle");
+  const brows = elements.dogEyes.querySelectorAll(".eye-brow");
+  const irises = elements.dogEyes.querySelectorAll(".iris");
+  const auras = elements.dogEyes.querySelectorAll(".eye-aura");
+
+  setSvgPresentation(joy, happy ? "1" : "0", veryHappy ? "translateY(-6px) scale(1.08)" : "none");
+  setSvgPresentation(sadness, sad ? "1" : "0");
+  setSvgPresentation(sadBrows, sad ? "1" : "0");
+  sparkles.forEach((sparkle) => {
+    setSvgPresentation(sparkle, happy ? "1" : "0");
+    sparkle.style.animation = "none";
+  });
+  brows.forEach((brow) => setSvgPresentation(brow, sad ? "0" : "1"));
+  irises.forEach((iris) => setSvgPresentation(iris, sad ? "0.52" : "1"));
+  auras.forEach((aura) => setSvgPresentation(aura, sad ? "0.16" : "1"));
+}
+
+function fadeDirectEmotionOverlay() {
+  const hidden = [
+    elements.dogEyes.querySelector(".emotion-joy"),
+    elements.dogEyes.querySelector(".emotion-sad"),
+    elements.dogEyes.querySelector(".sad-brows"),
+    ...elements.dogEyes.querySelectorAll(".sparkle"),
+  ];
+  const visible = [
+    ...elements.dogEyes.querySelectorAll(".eye-brow"),
+    ...elements.dogEyes.querySelectorAll(".iris"),
+    ...elements.dogEyes.querySelectorAll(".eye-aura"),
+  ];
+  hidden.forEach((node) => setSvgPresentation(node, "0", "none", "900ms"));
+  visible.forEach((node) => setSvgPresentation(node, "1", "none", "900ms"));
+}
+
+function clearDirectEmotionOverlay() {
+  const nodes = elements.dogEyes.querySelectorAll(
+    ".emotion-joy, .emotion-sad, .sad-brows, .sparkle, .eye-brow, .iris, .eye-aura",
+  );
+  nodes.forEach((node) => {
+    node.style.removeProperty("opacity");
+    node.style.removeProperty("transform");
+    node.style.removeProperty("transition");
+    node.style.removeProperty("animation");
+  });
+}
+
+function setSvgPresentation(node, opacity, transform = "none", duration = "180ms") {
+  if (!node) return;
+  node.style.transition = `opacity ${duration} ease-out, transform ${duration} ease-out`;
+  node.style.opacity = opacity;
+  node.style.transform = transform;
 }
 
 function isWithinTwoMeters(bbox, frameHeight, targetType) {
