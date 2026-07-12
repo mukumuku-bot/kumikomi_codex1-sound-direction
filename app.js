@@ -116,6 +116,7 @@ const speechState = {
   lastCommandKey: "",
   lastCommandAt: 0,
   speakingUntil: 0,
+  discardUntil: 0,
   chatHistory: [],
   chatSending: false,
   audioContext: null,
@@ -143,7 +144,7 @@ const ctx = elements.overlay.getContext("2d");
 const BARK_AUDIO_SRC = "./assets/dog-bark.mp3?v=real-bark-1";
 const SERVER_TRANSCRIBE_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/transcribe";
 const SERVER_CHAT_URL = "https://uakzkwotrawatfpwcfbi.supabase.co/functions/v1/chat";
-const SERVER_TRANSCRIBE_CHUNK_MS = 2000;
+const SERVER_TRANSCRIBE_CHUNK_MS = 3000;
 const EYE_RANGE_X = 20;
 const EYE_RANGE_Y = 12;
 const EYE_TRACKING_RESPONSE = 0.34;
@@ -1334,11 +1335,21 @@ async function sendServerAudioChunk(blob) {
 
   const data = await response.json();
   const text = String(data.text || "").trim();
-  if (!text) return;
+  if (!text || data.ignored || Date.now() < speechState.discardUntil || isLikelyTranscriptionNoise(text)) return;
 
   speechState.finalText += `${text}\n`;
   renderTranscript();
   handleVoiceCommand(text);
+}
+
+function isLikelyTranscriptionNoise(text) {
+  const noisePhrases = new Set([
+    "ありがとうございました",
+    "ご視聴ありがとうございました",
+    "はい",
+    "はいはい",
+  ]);
+  return noisePhrases.has(normalizeSpeech(text));
 }
 
 function stopServerTranscription() {
@@ -1677,6 +1688,7 @@ function speakKyokoReply(reply) {
   const responseText = ensureWanEnding(reply);
   elements.replyText.textContent = responseText;
   speechState.speakingUntil = Date.now() + Math.max(2400, (responseText.length + 4) * 160);
+  speechState.discardUntil = Math.max(speechState.discardUntil, speechState.speakingUntil);
 
   const voice = getKyokoVoice();
   const greeting = new SpeechSynthesisUtterance("はいワン");
@@ -1732,6 +1744,7 @@ function ensureBarkAudio() {
 }
 
 function bark(count) {
+  speechState.discardUntil = Math.max(speechState.discardUntil, Date.now() + count * 360 + 1600);
   for (let index = 0; index < count; index += 1) {
     window.setTimeout(playBarkSample, index * 360);
   }
