@@ -828,7 +828,7 @@ function enterTrickMode() {
   runState.command = "芸";
   runState.emotion = "normal";
   elements.dogEyes.classList.remove("is-emotion-happy", "is-emotion-very-happy", "is-emotion-sad", "is-emotion-fading");
-  elements.dogEyes.dataset.expression = "neutral";
+  elements.dogEyes.setAttribute("data-expression", "neutral");
   wakeEyes();
   elements.runStatusText.textContent = "芸を見ています";
   publishRunningBehavior();
@@ -1644,7 +1644,7 @@ function setEmotion(emotion, duration = 0) {
   runState.emotion = emotion;
   const classes = ["is-emotion-happy", "is-emotion-very-happy", "is-emotion-sad"];
   elements.dogEyes.classList.remove(...classes, "is-emotion-fading");
-  elements.dogEyes.dataset.expression = getEyeExpressionName(emotion);
+  elements.dogEyes.setAttribute("data-expression", getEyeExpressionName(emotion));
 
   if (emotion === "sleepy") {
     sleepEyes();
@@ -1676,7 +1676,7 @@ function fadeEmotionToNormal(classes) {
   elements.dogEyes.classList.add("is-emotion-fading");
   runState.emotionFadeTimer = window.setTimeout(() => {
     elements.dogEyes.classList.remove(...classes, "is-emotion-fading");
-    elements.dogEyes.dataset.expression = "neutral";
+    elements.dogEyes.setAttribute("data-expression", "neutral");
     runState.emotion = "normal";
     runState.emotionFadeTimer = null;
     publishRunningBehavior();
